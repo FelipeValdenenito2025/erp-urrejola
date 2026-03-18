@@ -40,3 +40,8 @@ textarea::placeholder {
   -webkit-text-fill-color: #9ca3af !important;
   opacity: 1;
 }
+
+/* Fix botones cancelar en blanco */
+button {
+  color: inherit;
+}
