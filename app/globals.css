@@ -45,3 +45,7 @@ textarea::placeholder {
 button {
   color: inherit;
 }
+
+button {
+  color: #111111;
+}
