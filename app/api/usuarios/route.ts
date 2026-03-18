@@ -34,11 +34,13 @@ export async function POST(req: NextRequest) {
     const { action, email, userId } = await req.json()
 
     if (action === 'invite') {
-      // Invitar usuario — Supabase manda email automático
-      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email)
-      if (error) throw error
-      return NextResponse.json({ success: true, user: data.user })
-    }
+  // Invitar usuario — Supabase manda email automático
+  const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: 'https://erp-02-two.vercel.app/reset-password'
+  })
+  if (error) throw error
+  return NextResponse.json({ success: true, user: data.user })
+}
 
     if (action === 'delete') {
       if (email === ADMIN_EMAIL) {
