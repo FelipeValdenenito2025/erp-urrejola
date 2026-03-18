@@ -13,8 +13,7 @@ export default function LoginPage() {
   const [modo, setModo] = useState('login') // 'login' | 'reset'
   const [resetEnviado, setResetEnviado] = useState(false)
 
-  async function handleLogin(e) {
-    e.preventDefault()
+async function handleLogin(e: React.FormEvent) {
     setLoading(true)
     setError('')
 
@@ -28,8 +27,7 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  async function handleReset(e) {
-    e.preventDefault()
+async function handleReset(e: React.FormEvent) {
     setLoading(true)
     setError('')
 
