@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import * as XLSX from 'xlsx'
+import { confirmar } from './Dialog'
 
 type Hito = {
   id: string
@@ -273,7 +274,7 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
       ...(form.proveedor_id ? { proveedor_id: form.proveedor_id } : {})
     })
     if (error) { setErr(error.message); setLoading(false); return }
-    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP', proveedor_id:'' })
+    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP' })
     setErr(''); setAbierto(false); onSave(); setLoading(false)
   }
 
@@ -369,19 +370,22 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate }:
   }
 
   async function eliminarHito(id:string) {
-    if (!confirm('¿Eliminar este hito y sus abonos?')) return
+    const ok = await confirmar({ titulo: 'Eliminar hito', mensaje: '¿Eliminar este hito y todos sus abonos? Esta acción no se puede deshacer.', labelConfirmar: '✕ Eliminar' })
+    if (!ok) return
     const { error } = await supabase.from('hitos').delete().eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { await confirmar({ titulo: 'Error', mensaje: error.message, labelConfirmar: 'Aceptar' }); return }
     recargar()
   }
 
   async function eliminarCosto(id:string) {
-    if (!confirm('¿Eliminar este costo?')) return
+    const ok2 = await confirmar({ titulo: 'Eliminar costo', mensaje: '¿Eliminar este costo? Esta acción no se puede deshacer.', labelConfirmar: '✕ Eliminar' })
+    if (!ok2) return
     await supabase.from('costos').delete().eq('id', id); recargar()
   }
 
   async function eliminarAbono(abonoId:string, tipo:'hito'|'costo', parentId:string) {
-    if (!confirm('¿Eliminar este abono?')) return
+    const ok3 = await confirmar({ titulo: 'Eliminar abono', mensaje: '¿Eliminar este abono? El estado del hito/costo se recalculará.', labelConfirmar: '✕ Eliminar' })
+    if (!ok3) return
     await supabase.from('abonos').delete().eq('id', abonoId)
     const col = tipo==='hito'?'hito_id':'costo_id'
     const tabla = tipo==='hito'?'hitos':'costos'

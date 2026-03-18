@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { confirmar, alertar } from './Dialog'
 import { supabase } from '@/lib/supabaseClient'
 
 type Proveedor = {
@@ -100,9 +101,10 @@ export default function Proveedores() {
   }
 
   async function eliminar(id: string, nombre: string) {
-    if (!confirm(`¿Eliminar el proveedor "${nombre}"?`)) return
+    const ok = await confirmar({ titulo: 'Eliminar proveedor', mensaje: `¿Eliminar el proveedor "${nombre}"? Esta acción no se puede deshacer.`, labelConfirmar: '✕ Eliminar' })
+    if (!ok) return
     const { error } = await supabase.from('proveedores').delete().eq('id', id)
-    if (error) { alert('Error: ' + error.message); return }
+    if (error) { await alertar({ titulo: 'Error', mensaje: error.message, tipo: 'error' }); return }
     cargar()
   }
 

@@ -9,6 +9,7 @@ import Proveedores from './components/Proveedores'
 import Facturacion from './components/Facturacion'
 import GestionUsuarios from './components/GestionUsuarios'
 import BotonConsulta from './components/BotonConsulta'
+import DialogProvider from './components/Dialog'
 import * as XLSX from 'xlsx'
 
 type Proyecto = {
@@ -466,6 +467,7 @@ export default function Dashboard() {
           onUpdate={cargar}
         />
       )}
+      <DialogProvider />
       <BotonConsulta usuarioEmail={user?.email || ''} />
     </div>
   )

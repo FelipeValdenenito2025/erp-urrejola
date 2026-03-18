@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { confirmar } from './Dialog'
 
 const ADMIN_EMAIL = 'fvaldebenito@aacadvisory.cl'
 
@@ -68,7 +69,8 @@ export default function GestionUsuarios({ usuarioEmail }: { usuarioEmail: string
       ban:    `¿Desactivar el acceso de ${usuario.email}?`,
       unban:  `¿Reactivar el acceso de ${usuario.email}?`,
     }
-    if (!confirm(mensajes[tipo])) return
+    const ok = await confirmar({ titulo: tipo === 'delete' ? 'Eliminar usuario' : tipo === 'ban' ? 'Desactivar usuario' : 'Reactivar usuario', mensaje: mensajes[tipo], labelConfirmar: tipo === 'delete' ? '✕ Eliminar' : tipo === 'ban' ? '⊘ Desactivar' : '✓ Reactivar' })
+    if (!ok) return
 
     setMensaje(null)
     try {
