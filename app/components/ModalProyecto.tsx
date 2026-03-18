@@ -75,7 +75,7 @@ function ModalNuevoHito({ proyectoId, moneda, disponible, onClose, onSave }:
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
-  async function guardar(e: any) {
+  async function guardar(e: React.FormEvent) {
     e.preventDefault()
     if (!desc || !monto) { setErr('Completa todos los campos.'); return }
     const n = parseFloat(monto)
@@ -136,7 +136,7 @@ function ModalAmpliarPresupuesto({ proyecto, onClose, onSave }:
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
-  async function guardar(e: any) {
+  async function guardar(e: React.FormEvent) {
     e.preventDefault()
     const n = parseFloat(monto)
     if (!n || n <= 0) { setErr('Ingresa un monto válido.'); return }
@@ -190,7 +190,7 @@ function ModalAbono({ tipo, item, moneda, onClose, onSave }:
   const totalAbonado = (item.abonos||[]).reduce((a:number,b:any)=>a+b.monto,0)
   const restante = item.monto - totalAbonado
 
-  async function guardar(e: any) {
+  async function guardar(e: React.FormEvent) {
     e.preventDefault()
     const n = parseFloat(monto)
     if (!n || n <= 0) { setErr('Monto inválido.'); return }
@@ -262,7 +262,7 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
   const [abierto, setAbierto] = useState(false)
   const set = (k:string, v:string) => setForm(f=>({...f,[k]:v}))
 
-  async function guardar(e: any) {
+  async function guardar(e: React.FormEvent) {
     e.preventDefault()
     if (!form.descripcion || !form.monto) { setErr('Completa todos los campos.'); return }
     setLoading(true)
@@ -273,7 +273,8 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
       ...(form.proveedor_id ? { proveedor_id: form.proveedor_id } : {})
     })
     if (error) { setErr(error.message); setLoading(false); return }
-setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP', proveedor_id:'' })
+    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP' })
+    setErr(''); setAbierto(false); onSave(); setLoading(false)
   }
 
   if (!abierto) return (

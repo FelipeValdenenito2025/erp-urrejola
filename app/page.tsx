@@ -48,7 +48,7 @@ function ModalNuevoProyecto({ onClose, onSave }: { onClose: () => void, onSave: 
   const [error, setError] = useState('')
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nombre || !form.cliente) { setError('Nombre y cliente son obligatorios.'); return }
     setLoading(true)

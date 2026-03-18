@@ -9,7 +9,7 @@ export default function BotonConsulta({ usuarioEmail }: { usuarioEmail: string }
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
 
-  async function enviar(e: any) {
+  async function enviar(e: React.FormEvent) {
     e.preventDefault()
     if (!mensaje.trim()) return
     setEnviando(true)
