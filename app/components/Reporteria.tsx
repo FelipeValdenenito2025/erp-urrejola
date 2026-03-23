@@ -57,7 +57,7 @@ export default function Reporteria() {
     setLoading(true)
     const [{ data: p }, { data: h }, { data: c }] = await Promise.all([
       supabase.from('proyectos').select('*').order('nombre'),
-      supabase.from('hitos').select('*').order('created_at'),
+      supabase.from('hitos').select('*, abonos(*)').order('created_at'),
       supabase.from('costos').select('*').order('created_at'),
     ])
     if (p) setProyectos(p)
@@ -69,11 +69,23 @@ export default function Reporteria() {
   const desdeDate = new Date(desde + 'T00:00:00')
   const hastaDate = new Date(hasta + 'T23:59:59')
 
-  // Hitos pagados en el período
-  const hitosFiltrados = hitos.filter(h => {
-    if (!h.fecha_pago || h.estado_pago !== 'Pagado') return false
-    const f = new Date(h.fecha_pago + 'T12:00:00')
-    return f >= desdeDate && f <= hastaDate
+  // Abonos de hitos en el período (incluye parciales y totales)
+  type AbonoHito = { monto: number; fecha: string; hito_id: string; proyecto_id: string; descripcion: string; moneda: string }
+  const abonosFiltrados: AbonoHito[] = []
+  hitos.forEach(h => {
+    (h.abonos || []).forEach((a: any) => {
+      const f = new Date(a.fecha + 'T12:00:00')
+      if (f >= desdeDate && f <= hastaDate) {
+        abonosFiltrados.push({
+          monto: a.monto,
+          fecha: a.fecha,
+          hito_id: h.id,
+          proyecto_id: h.proyecto_id,
+          descripcion: h.descripcion,
+          moneda: proyectos.find(p => p.id === h.proyecto_id)?.moneda || 'CLP',
+        })
+      }
+    })
   })
 
   // Costos registrados en el período
@@ -82,7 +94,7 @@ export default function Reporteria() {
     return f >= desdeDate && f <= hastaDate
   })
 
-  const totalIngresos = hitosFiltrados.reduce((a, h) => a + h.monto, 0)
+  const totalIngresos = abonosFiltrados.reduce((a, ab) => a + ab.monto, 0)
   const totalEgresos  = costosFiltrados.reduce((a, c) => a + c.monto, 0)
   const utilidad      = totalIngresos - totalEgresos
 
@@ -94,7 +106,7 @@ export default function Reporteria() {
 
   // Resumen por proyecto
   const resumenProyectos = proyectos.map(p => {
-    const ing = hitosFiltrados.filter(h => h.proyecto_id === p.id).reduce((a, h) => a + h.monto, 0)
+    const ing = abonosFiltrados.filter(a => a.proyecto_id === p.id).reduce((a, ab) => a + ab.monto, 0)
     const egr = costosFiltrados.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
     return { ...p, ingresos: ing, egresos: egr, utilidad: ing - egr }
   }).filter(p => p.ingresos > 0 || p.egresos > 0)
@@ -125,13 +137,13 @@ export default function Reporteria() {
         ['INGRESOS DEL PERÍODO'],
         [`Desde: ${desde} | Hasta: ${hasta}`],
         [],
-        ['Proyecto', 'Cliente', 'Hito', 'Fecha Pago', 'Estado Factura', 'Monto'],
-        ...hitosFiltrados.map(h => {
-          const p = proyectos.find(x => x.id === h.proyecto_id)
-          return [p?.nombre||'', p?.cliente||'', h.descripcion, h.fecha_pago||'', h.estado_factura, h.monto]
+        ['Proyecto', 'Cliente', 'Hito', 'Fecha Abono', 'Monto'],
+        ...abonosFiltrados.map(ab => {
+          const p = proyectos.find(x => x.id === ab.proyecto_id)
+          return [p?.nombre||'', p?.cliente||'', ab.descripcion, ab.fecha, ab.monto]
         }),
         [],
-        ['', '', '', '', 'TOTAL', totalIngresos],
+        ['', '', '', 'TOTAL', totalIngresos],
       ]
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ingData), 'Ingresos')
 
@@ -157,9 +169,9 @@ export default function Reporteria() {
   }
 
   function imprimirPDF() {
-    const ingRows = hitosFiltrados.map(h => {
-      const p = proyectos.find(x => x.id === h.proyecto_id)
-      return `<tr><td>${p?.nombre||''}</td><td>${p?.cliente||''}</td><td>${h.descripcion}</td><td>${h.fecha_pago||''}</td><td style="text-align:right">${fmt(h.monto)}</td></tr>`
+    const ingRows = abonosFiltrados.map(ab => {
+      const p = proyectos.find(x => x.id === ab.proyecto_id)
+      return `<tr><td>${p?.nombre||''}</td><td>${p?.cliente||''}</td><td>${ab.descripcion}</td><td>${ab.fecha}</td><td style="text-align:right">${fmt(ab.monto)}</td></tr>`
     }).join('')
     const egrRows = costosFiltrados.map(c => {
       const p = proyectos.find(x => x.id === c.proyecto_id)
@@ -257,7 +269,7 @@ export default function Reporteria() {
         <div style={{ background:'linear-gradient(135deg,#003366,#00509d)', borderRadius:'12px', padding:'18px', color:'white' }}>
           <div style={{ fontSize:'11px', opacity:0.8, textTransform:'uppercase' as const, letterSpacing:'0.5px', marginBottom:'4px' }}>Ingresos cobrados</div>
           <div style={{ fontSize:'24px', fontWeight:'700' }}>{fmt(totalIngresos)}</div>
-          <div style={{ fontSize:'11px', opacity:0.7, marginTop:'2px' }}>{hitosFiltrados.length} hitos pagados en el período</div>
+          <div style={{ fontSize:'11px', opacity:0.7, marginTop:'2px' }}>{abonosFiltrados.length} abonos en el período</div>
         </div>
         <div style={{ background:'linear-gradient(135deg,#d9534f,#c9302c)', borderRadius:'12px', padding:'18px', color:'white' }}>
           <div style={{ fontSize:'11px', opacity:0.8, textTransform:'uppercase' as const, letterSpacing:'0.5px', marginBottom:'4px' }}>Egresos registrados</div>
@@ -338,7 +350,7 @@ export default function Reporteria() {
             <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366' }}>💰 Ingresos del período</div>
             <div style={{ fontSize:'12px', fontWeight:'700', color:'#198754' }}>{fmt(totalIngresos)}</div>
           </div>
-          {hitosFiltrados.length === 0 ? (
+          {abonosFiltrados.length === 0 ? (
             <div style={{ textAlign:'center', padding:'24px', color:'#aaa', fontSize:'13px' }}>Sin ingresos en el período</div>
           ) : (
             <div style={{ overflowX:'auto' as const }}>
@@ -347,19 +359,19 @@ export default function Reporteria() {
                   <tr style={{ background:'#f8f9fa' }}>
                     <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Proyecto</th>
                     <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Hito</th>
-                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6c757d', fontWeight:'600' }}>Fecha</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6c757d', fontWeight:'600' }}>Fecha Abono</th>
                     <th style={{ padding:'8px 10px', textAlign:'right' as const, color:'#6c757d', fontWeight:'600' }}>Monto</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {hitosFiltrados.map(h => {
-                    const p = proyectos.find(x => x.id === h.proyecto_id)
+                  {abonosFiltrados.map((ab, idx) => {
+                    const p = proyectos.find(x => x.id === ab.proyecto_id)
                     return (
-                      <tr key={h.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
+                      <tr key={idx} style={{ borderBottom:'1px solid #f0f0f0' }}>
                         <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
-                        <td style={{ padding:'7px 10px', color:'#374151', fontSize:'11px' }}>{h.descripcion}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'center' as const, color:'#6c757d', fontSize:'11px' }}>{h.fecha_pago}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#198754', fontSize:'11px' }}>{fmt(h.monto, p?.moneda)}</td>
+                        <td style={{ padding:'7px 10px', color:'#374151', fontSize:'11px' }}>{ab.descripcion}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'center' as const, color:'#6c757d', fontSize:'11px' }}>{ab.fecha}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#198754', fontSize:'11px' }}>{fmt(ab.monto, ab.moneda)}</td>
                       </tr>
                     )
                   })}
