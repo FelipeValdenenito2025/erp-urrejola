@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         <td style="padding:10px 14px;border-bottom:1px solid #eee;text-align:center">
           <a href="${h.link_factura}" target="_blank"
             style="background:#003366;color:white;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600">
-            📄 Ver Factura
+            📄 Ver Documento
           </a>
         </td>
       </tr>
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from:    'AA&C Auditores <erp@aacadvisory.cl>',
       to:      emailDestino,
-      cc:      ['elias@solarfotovoltaica.cl', 'fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
+      cc:      ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
       subject: `📄 Documentos Tributarios — ${proyecto.nombre}`,
       html,
     })
