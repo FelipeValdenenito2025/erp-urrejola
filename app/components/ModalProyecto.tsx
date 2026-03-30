@@ -339,8 +339,8 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
   )
 }
 
-export default function ModalProyecto({ proyecto, onClose, onUpdate }:
-  { proyecto:Proyecto, onClose:()=>void, onUpdate:()=>void }) {
+export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmail = '' }:
+  { proyecto:Proyecto, onClose:()=>void, onUpdate:()=>void, usuarioEmail?:string }) {
   const [hitos, setHitos] = useState<Hito[]>([])
   const [costos, setCostos] = useState<Costo[]>([])
   const [loading, setLoading] = useState(true)
@@ -796,14 +796,14 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate }:
       {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
-      {showEnviarFacturas && proyectoLocal && (
-        <ModalEnviarFacturas
-          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
-          usuarioEmail={usuarioEmail}
-          onClose={() => setShowEnviarFacturas(false)}
-        />
-      )}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }

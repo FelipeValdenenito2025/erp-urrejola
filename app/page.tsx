@@ -465,6 +465,7 @@ export default function Dashboard() {
           proyecto={proyectoSeleccionado}
           onClose={() => setProyectoSeleccionado(null)}
           onUpdate={cargar}
+          usuarioEmail={user?.email || ''}
         />
       )}
       <DialogProvider />
