@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     await resend.emails.send({
-      from:     'ERP Urrejola <onboarding@resend.dev>',
+      from: 'ERP Urrejola <erp@aacadvisory.cl>',
       to:       'fvaldebenito@aacadvisory.cl',
       replyTo:  usuarioEmail,
       subject:  `💬 Consulta ERP — ${usuarioEmail}`,

@@ -68,11 +68,12 @@ export async function POST(req: NextRequest) {
     `
 
 await resend.emails.send({
-  from:    'ERP Urrejola <onboarding@resend.dev>',
+  from:    'ERP Urrejola <erp@aacadvisory.cl>',
   to:      'fvaldebenito@aacadvisory.cl',
+  cc:      usuarioEmail !== 'fvaldebenito@aacadvisory.cl' ? usuarioEmail : undefined,
   subject: `📄 Solicitud ${solicitud.tipo_doc} — ${solicitud.nombre_proyecto} [HITO: ${solicitud.id_hito}]`,
   html:    htmlEmail,
-    })
+})
 
     return NextResponse.json({ success: true })
 
