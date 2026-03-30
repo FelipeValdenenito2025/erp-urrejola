@@ -275,7 +275,7 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
       ...(form.proveedor_id ? { proveedor_id: form.proveedor_id } : {})
     })
     if (error) { setErr(error.message); setLoading(false); return }
-    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP' })
+    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP', proveedor_id:'' })
     setErr(''); setAbierto(false); onSave(); setLoading(false)
   }
 
