@@ -8,8 +8,11 @@ import Reporteria from './components/Reporteria'
 import Proveedores from './components/Proveedores'
 import Facturacion from './components/Facturacion'
 import GestionUsuarios from './components/GestionUsuarios'
+import ModalEnviarFacturas from './components/ModalEnviarFacturas'
 import BotonConsulta from './components/BotonConsulta'
 import DialogProvider from './components/Dialog'
+
+const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 import * as XLSX from 'xlsx'
 
 type Proyecto = {
@@ -118,6 +121,7 @@ export default function Dashboard() {
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState<any>(null)
   const [proyectoEditar, setProyectoEditar] = useState<any>(null)
   const [showExcelModal, setShowExcelModal] = useState(false)
+  const [proyectoEnviarFacturas, setProyectoEnviarFacturas] = useState<any>(null)
   const [excelSeleccionados, setExcelSeleccionados] = useState<string[]>([])
   const [filtro, setFiltro] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
@@ -362,6 +366,13 @@ export default function Dashboard() {
                             style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600' }}>
                             ✏ Editar
                           </button>
+                          {ADMINS.includes(user?.email || '') && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setProyectoEnviarFacturas(p) }}
+                              style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'none', background:'linear-gradient(135deg,#e8511a,#c94415)', color:'white', cursor:'pointer', fontWeight:'600' }}>
+                              📨 Facturas
+                            </button>
+                          )}
 
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: '#e3f2fd', color: '#0d47a1', fontWeight: '500' }}>💰 {fmt(p.total_cobrado, p.moneda)}</span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: '#fdecea', color: '#842029', fontWeight: '500' }}>📤 {fmt(p.total_costos, p.moneda)}</span>
@@ -466,6 +477,14 @@ export default function Dashboard() {
           onClose={() => setProyectoSeleccionado(null)}
           onUpdate={cargar}
           usuarioEmail={user?.email || ''}
+        />
+      )}
+      {proyectoEnviarFacturas && (
+        <ModalEnviarFacturas
+          proyecto={{ id: proyectoEnviarFacturas.id, nombre: proyectoEnviarFacturas.nombre, cliente: proyectoEnviarFacturas.cliente, email: proyectoEnviarFacturas.email || '', moneda: proyectoEnviarFacturas.moneda }}
+          hitos={[]}
+          usuarioEmail={user?.email || ''}
+          onClose={() => setProyectoEnviarFacturas(null)}
         />
       )}
       <DialogProvider />

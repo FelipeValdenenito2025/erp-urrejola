@@ -640,16 +640,6 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                   <span style={{ fontSize:'18px', fontWeight:'800', color: utilidad>=0?'#0a3622':'#842029' }}>{fmt(utilidad,proyectoLocal.moneda)}</span>
                 </div>
 
-                {/* Botón admin enviar facturas */}
-                {ADMINS.includes(usuarioEmail) && (
-                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'8px' }}>
-                    <button onClick={() => setShowEnviarFacturas(true)}
-                      style={{ padding:'7px 16px', borderRadius:'8px', border:'none', background:'linear-gradient(135deg,#e8511a,#c94415)', color:'white', cursor:'pointer', fontSize:'13px', fontWeight:'700', boxShadow:'0 2px 8px rgba(232,81,26,0.25)' }}>
-                      📨 Enviar facturas al cliente
-                    </button>
-                  </div>
-                )}
-
                 {/* Hitos */}
                 <Separador titulo="📋 Hitos de Venta" accion={
                   <div style={{ display:'flex', gap:'6px' }}>
@@ -799,7 +789,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
           </div>
         </div>
       </div>
-
+      
       {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}

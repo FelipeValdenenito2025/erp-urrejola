@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 
 const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 
@@ -22,16 +23,26 @@ type Proyecto = {
 
 type Props = {
   proyecto: Proyecto
-  hitos: Hito[]
+  hitos?: Hito[]
   usuarioEmail: string
   onClose: () => void
 }
 
 const fmt = (n: number) => '$' + (n || 0).toLocaleString('es-CL')
 
-export default function ModalEnviarFacturas({ proyecto, hitos, usuarioEmail, onClose }: Props) {
+export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuarioEmail, onClose }: Props) {
+  const [hitosData, setHitosData] = useState<Hito[]>(hitosProp || [])
+
+  useEffect(() => {
+    if (!hitosProp || hitosProp.length === 0) {
+      supabase.from('hitos').select('*').eq('proyecto_id', proyecto.id).then(({ data }) => {
+        if (data) setHitosData(data)
+      })
+    }
+  }, [proyecto.id])
+
   // Solo hitos con link de factura cargado
-  const hitosDisponibles = hitos.filter(h => h.link_factura && h.link_factura.trim() !== '')
+  const hitosDisponibles = hitosData.filter(h => h.link_factura && h.link_factura.trim() !== '')
 
   const [seleccionados, setSeleccionados] = useState<string[]>(hitosDisponibles.map(h => h.id))
   const [emailDestino, setEmailDestino] = useState(proyecto.email || '')
