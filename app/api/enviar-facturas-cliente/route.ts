@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from:    'AA&C Auditores <erp@aacadvisory.cl>',
       to:      emailDestino,
-      cc:      ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
+      cc:      ['elias@solarfotovoltaica.cl', 'fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
       subject: `📄 Documentos Tributarios — ${proyecto.nombre}`,
       html,
     })
