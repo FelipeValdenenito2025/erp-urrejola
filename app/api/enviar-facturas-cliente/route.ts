@@ -29,9 +29,11 @@ export async function POST(req: NextRequest) {
       <div style="font-family:'Segoe UI',sans-serif;max-width:620px;margin:0 auto;color:#333">
 
         <!-- Header -->
-        <div style="background:#003366;padding:28px 32px;border-radius:12px 12px 0 0;text-align:center">
-          <img src="https://i.imgur.com/U7FK19x.png" alt="Urrejola" style="height:48px;margin-bottom:12px;display:block;margin:0 auto 12px" />
-          <h1 style="color:white;margin:0;font-size:22px;font-weight:700">Documentos Tributarios</h1>
+        <div style="background:white;padding:20px 32px;border-radius:12px 12px 0 0;text-align:center;border:1px solid #e9ecef;border-bottom:none">
+          <img src="https://i.imgur.com/U7FK19x.png" alt="Urrejola" style="height:44px;object-fit:contain;display:block;margin:0 auto" />
+        </div>
+        <div style="background:#003366;padding:20px 32px;text-align:center">
+          <h1 style="color:white;margin:0;font-size:20px;font-weight:700">Documentos Tributarios</h1>
           <p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:14px">${proyecto.nombre}</p>
         </div>
 
@@ -88,7 +90,7 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from:    'AA&C Auditores <erp@aacadvisory.cl>',
       to:      emailDestino,
-      cc:      'fvaldebenito@aacadvisory.cl',
+      cc:      ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
       subject: `📄 Documentos Tributarios — ${proyecto.nombre}`,
       html,
     })

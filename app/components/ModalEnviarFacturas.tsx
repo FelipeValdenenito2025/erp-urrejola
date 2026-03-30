@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-const ADMIN_EMAIL = 'fvaldebenito@aacadvisory.cl'
+const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 
 type Hito = {
   id: string
@@ -41,7 +41,7 @@ export default function ModalEnviarFacturas({ proyecto, hitos, usuarioEmail, onC
   const [enviado, setEnviado] = useState(false)
 
   // Solo admin puede usar esto
-  if (usuarioEmail !== ADMIN_EMAIL) return null
+  if (!ADMINS.includes(usuarioEmail)) return null
 
   function toggleSeleccion(id: string) {
     setSeleccionados(prev =>

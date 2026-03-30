@@ -339,6 +339,8 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
   )
 }
 
+const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
+
 export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmail = '' }:
   { proyecto:Proyecto, onClose:()=>void, onUpdate:()=>void, usuarioEmail?:string }) {
   const [hitos, setHitos] = useState<Hito[]>([])
@@ -584,12 +586,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                     style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.3)', background:'rgba(255,255,255,0.15)', color:'white', cursor:'pointer', fontWeight:'600' }}>
                     📥 Excel
                   </button>
-                  {usuarioEmail === 'fvaldebenito@aacadvisory.cl' && (
-                    <button onClick={() => setShowEnviarFacturas(true)}
-                      style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.3)', background:'rgba(255,165,0,0.3)', color:'white', cursor:'pointer', fontWeight:'600' }}>
-                      📨 Enviar facturas
-                    </button>
-                  )}
+
                   <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'white', width:'30px', height:'30px', borderRadius:'7px', cursor:'pointer', fontSize:'18px', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
                 </div>
               </div>
@@ -642,6 +639,16 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                   <span style={{ fontSize:'13px', fontWeight:'700', color: utilidad>=0?'#0a3622':'#842029' }}>💡 Utilidad neta (cobrado − pagado)</span>
                   <span style={{ fontSize:'18px', fontWeight:'800', color: utilidad>=0?'#0a3622':'#842029' }}>{fmt(utilidad,proyectoLocal.moneda)}</span>
                 </div>
+
+                {/* Botón admin enviar facturas */}
+                {ADMINS.includes(usuarioEmail) && (
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'8px' }}>
+                    <button onClick={() => setShowEnviarFacturas(true)}
+                      style={{ padding:'7px 16px', borderRadius:'8px', border:'none', background:'linear-gradient(135deg,#e8511a,#c94415)', color:'white', cursor:'pointer', fontSize:'13px', fontWeight:'700', boxShadow:'0 2px 8px rgba(232,81,26,0.25)' }}>
+                      📨 Enviar facturas al cliente
+                    </button>
+                  </div>
+                )}
 
                 {/* Hitos */}
                 <Separador titulo="📋 Hitos de Venta" accion={
@@ -793,17 +800,19 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
         </div>
       </div>
 
-{showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
+      {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
-      {showEnviarFacturas && proyectoLocal && (
-        <ModalEnviarFacturas
-          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
-          usuarioEmail={usuarioEmail}
-          onClose={() => setShowEnviarFacturas(false)}
-        />
-      )}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }
+
+
