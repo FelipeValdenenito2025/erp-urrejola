@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import * as XLSX from 'xlsx'
 import { confirmar } from './Dialog'
+import ModalEnviarFacturas from './ModalEnviarFacturas'
 
 type Hito = {
   id: string
@@ -274,7 +275,7 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
       ...(form.proveedor_id ? { proveedor_id: form.proveedor_id } : {})
     })
     if (error) { setErr(error.message); setLoading(false); return }
-    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP', proveedor_id:'' })
+    setForm({ descripcion:'', categoria:'Servicios', monto:'', moneda:'CLP' })
     setErr(''); setAbierto(false); onSave(); setLoading(false)
   }
 
@@ -343,6 +344,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate }:
   const [hitos, setHitos] = useState<Hito[]>([])
   const [costos, setCostos] = useState<Costo[]>([])
   const [loading, setLoading] = useState(true)
+  const [showEnviarFacturas, setShowEnviarFacturas] = useState(false)
   const [abonoItem, setAbonoItem] = useState<{tipo:'hito'|'costo', item:any}|null>(null)
   const [showNuevoHito, setShowNuevoHito] = useState(false)
   const [showAmpliar, setShowAmpliar] = useState(false)
@@ -582,6 +584,12 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate }:
                     style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.3)', background:'rgba(255,255,255,0.15)', color:'white', cursor:'pointer', fontWeight:'600' }}>
                     📥 Excel
                   </button>
+                  {usuarioEmail === 'fvaldebenito@aacadvisory.cl' && (
+                    <button onClick={() => setShowEnviarFacturas(true)}
+                      style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'6px', border:'1px solid rgba(255,255,255,0.3)', background:'rgba(255,165,0,0.3)', color:'white', cursor:'pointer', fontWeight:'600' }}>
+                      📨 Enviar facturas
+                    </button>
+                  )}
                   <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none', color:'white', width:'30px', height:'30px', borderRadius:'7px', cursor:'pointer', fontSize:'18px', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
                 </div>
               </div>
@@ -789,5 +797,13 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate }:
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }
