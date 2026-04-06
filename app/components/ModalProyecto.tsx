@@ -342,29 +342,45 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
 const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 
 function ModalComision({ presupuesto, moneda, colaboradores, onClose, onConfirm }:
-  { presupuesto: number, moneda: string, colaboradores: {id:string,nombre:string,rut:string}[], onClose: ()=>void, onConfirm: (id:string, nombre:string)=>void }) {
-  const comision = Math.round(presupuesto * 0.03)
-  const fmt2 = (n: number) => moneda === 'USD' ? 'USD ' + n.toLocaleString('es-CL') : '$' + n.toLocaleString('es-CL')
+  { presupuesto: number, moneda: string, colaboradores: {id:string,nombre:string,rut:string}[], onClose: ()=>void, onConfirm: (id:string, nombre:string, porcentaje:number, monto:number)=>void }) {
+  const fmt2 = (n: number) => moneda === 'USD' ? 'USD ' + Math.round(n).toLocaleString('es-CL') : '$' + Math.round(n).toLocaleString('es-CL')
   const [colaboradorId, setColaboradorId] = useState('')
+  const [porcentaje, setPorcentaje] = useState('3')
+  const pct = parseFloat(porcentaje) || 0
+  const comision = Math.round(presupuesto * pct / 100)
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
       <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'440px', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.25)' }}>
         <div style={{ background:'linear-gradient(135deg,#6f42c1,#5a32a3)', padding:'16px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <h5 style={{ margin:0, color:'white', fontSize:'15px', fontWeight:'700' }}>💜 Registrar Comisión 3%</h5>
+          <h5 style={{ margin:0, color:'white', fontSize:'15px', fontWeight:'700' }}>💜 Registrar Comisión</h5>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'white', fontSize:'20px', cursor:'pointer' }}>×</button>
         </div>
         <div style={{ padding:'20px' }}>
-          <div style={{ background:'#f3f0ff', borderRadius:'8px', padding:'14px', marginBottom:'18px' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'6px' }}>
+
+          {/* Presupuesto y cálculo */}
+          <div style={{ background:'#f3f0ff', borderRadius:'8px', padding:'14px', marginBottom:'16px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'10px' }}>
               <span style={{ color:'#6c757d' }}>Presupuesto total</span>
-              <span style={{ fontWeight:'600', color:'#374151' }}>{fmt2(presupuesto)}</span>
+              <span style={{ fontWeight:'700', color:'#374151' }}>{fmt2(presupuesto)}</span>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'15px' }}>
-              <span style={{ fontWeight:'700', color:'#6f42c1' }}>Comisión (3%)</span>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
+              <label style={{ fontSize:'12px', fontWeight:'600', color:'#374151', whiteSpace:'nowrap' as const }}>Porcentaje (%)</label>
+              <input
+                type="number" min="0" max="100" step="0.5"
+                value={porcentaje}
+                onChange={e => setPorcentaje(e.target.value)}
+                style={{ width:'80px', padding:'7px 10px', fontSize:'14px', border:'1px solid #d1d5db', borderRadius:'8px', outline:'none', textAlign:'center' as const, fontWeight:'600' }}
+              />
+              <span style={{ fontSize:'13px', color:'#6c757d' }}>sobre el presupuesto</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'16px', borderTop:'1px solid #e0d7ff', paddingTop:'10px' }}>
+              <span style={{ fontWeight:'700', color:'#6f42c1' }}>Monto comisión ({pct}%)</span>
               <span style={{ fontWeight:'800', color:'#6f42c1' }}>{fmt2(comision)}</span>
             </div>
           </div>
+
+          {/* Selector colaborador */}
           <div style={{ marginBottom:'18px' }}>
             <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'6px' }}>Asignar a colaborador *</label>
             {colaboradores.length === 0 ? (
@@ -381,18 +397,19 @@ function ModalComision({ presupuesto, moneda, colaboradores, onClose, onConfirm 
               </select>
             )}
           </div>
+
           <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
             <button onClick={onClose}
               style={{ padding:'9px 20px', borderRadius:'8px', border:'1px solid #d1d5db', background:'white', cursor:'pointer', fontSize:'14px', color:'#374151' }}>
               Cancelar
             </button>
             <button onClick={() => {
-              if (!colaboradorId) return
+              if (!colaboradorId || pct <= 0) return
               const colab = colaboradores.find(c => c.id === colaboradorId)
-              if (colab) onConfirm(colab.id, colab.nombre)
-            }} disabled={!colaboradorId}
-              style={{ padding:'9px 20px', borderRadius:'8px', border:'none', background: colaboradorId?'#6f42c1':'#aaa', color:'white', cursor: colaboradorId?'pointer':'not-allowed', fontSize:'14px', fontWeight:'700' }}>
-              ✓ Registrar comisión
+              if (colab) onConfirm(colab.id, colab.nombre, pct, comision)
+            }} disabled={!colaboradorId || pct <= 0}
+              style={{ padding:'9px 20px', borderRadius:'8px', border:'none', background: (colaboradorId && pct > 0)?'#6f42c1':'#aaa', color:'white', cursor: (colaboradorId && pct > 0)?'pointer':'not-allowed', fontSize:'14px', fontWeight:'700' }}>
+              ✓ Registrar {fmt2(comision)}
             </button>
           </div>
         </div>
@@ -547,14 +564,12 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     }
   }
 
-  async function registrarComision(colaboradorId: string, colaboradorNombre: string) {
-    const presupuesto = (proyectoLocal.monto_base || 0) + (proyectoLocal.monto_extra || 0)
-    const comision = Math.round(presupuesto * 0.03)
+  async function registrarComision(colaboradorId: string, colaboradorNombre: string, porcentaje: number, monto: number) {
     const { error } = await supabase.from('costos').insert({
       proyecto_id: proyectoLocal.id,
-      descripcion: `Comisión 3% — ${colaboradorNombre}`,
+      descripcion: `Comisión ${porcentaje}% — ${colaboradorNombre}`,
       categoria: 'Honorarios',
-      monto: comision,
+      monto,
       moneda: proyectoLocal.moneda,
       estado_pago: 'Pendiente',
       colaborador_id: colaboradorId,
@@ -563,7 +578,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     await supabase.rpc('registrar_log', {
       p_usuario: 'sistema',
       p_accion: 'Comisión registrada',
-      p_detalles: `3% de ${fmt(presupuesto, proyectoLocal.moneda)} = ${fmt(comision, proyectoLocal.moneda)} — ${colaboradorNombre}`
+      p_detalles: `${porcentaje}% = ${fmt(monto, proyectoLocal.moneda)} — ${colaboradorNombre}`
     })
     recargar()
   }
@@ -895,10 +910,14 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
           moneda={proyectoLocal.moneda}
           colaboradores={colaboradores}
           onClose={()=>setShowComision(false)}
-          onConfirm={(colabId, colabNombre) => { registrarComision(colabId, colabNombre); setShowComision(false) }}
+          onConfirm={(colabId, colabNombre, pct, monto) => { registrarComision(colabId, colabNombre, pct, monto); setShowComision(false) }}
         />
       )}
       {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
+      {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
+      {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
+    </>
+     {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
       {showEnviarFacturas && proyectoLocal && (
@@ -912,3 +931,4 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     </>
   )
 }
+
