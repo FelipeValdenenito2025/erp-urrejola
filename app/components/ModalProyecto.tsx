@@ -917,7 +917,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
     </>
-     {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
+{showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
       {showEnviarFacturas && proyectoLocal && (
