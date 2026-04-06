@@ -379,7 +379,7 @@ export default function Dashboard() {
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: '#e3f2fd', color: '#0d47a1', fontWeight: '500' }}>💰 {fmt(p.total_cobrado, p.moneda)}</span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: '#fdecea', color: '#842029', fontWeight: '500' }}>📤 {fmt(p.total_costos, p.moneda)}</span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: saludBg[salud], color: saludText[salud], fontWeight: '600' }}>{saludLabel[salud]}</span>
-                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: utilP >= 0 ? '#e8f5e9' : '#fdecea', color: utilP >= 0 ? '#1b5e20' : '#842029', fontWeight: '600', marginLeft: 'auto' }}>
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: utilReal  >= 0 ? '#e8f5e9' : '#fdecea', color: utilReal >= 0 ? '#1b5e20' : '#842029', fontWeight: '600', marginLeft: 'auto' }}>
                             Real: {fmt(utilReal, p.moneda)}
                           </span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: utilProyectada >= 0 ? '#e8f5e9' : '#fdecea', color: utilProyectada >= 0 ? '#1b5e20' : '#842029', fontWeight: '600' }}>
