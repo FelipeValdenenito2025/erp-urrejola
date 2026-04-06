@@ -240,7 +240,7 @@ export default function Reporteria() {
       </div>
       <div class="periodo">Período: <strong>${desde}</strong> al <strong>${hasta}</strong></div>
       <div class="summary">
-        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${hitosFiltrados.length} hitos pagados</small></div>
+        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${abonosFiltrados.length} abonos recibidos</small></div>
         <div class="box box-egr"><label>Egresos registrados</label><strong>${fmt(totalEgresos)}</strong><br><small>${costosFiltrados.length} costos</small></div>
         <div class="box box-uti"><label>Utilidad neta</label><strong>${fmt(utilidad)}</strong></div>
       </div>
