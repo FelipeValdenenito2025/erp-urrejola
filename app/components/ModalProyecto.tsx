@@ -838,17 +838,17 @@ Comisión (3%): ${fmt(comision,proyectoLocal.moneda)}`,
         </div>
       </div>
 
-      {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
+  {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
+      {showEnviarFacturas && proyectoLocal && (
+        <ModalEnviarFacturas
+          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+          hitos={hitos}
+          usuarioEmail={usuarioEmail}
+          onClose={() => setShowEnviarFacturas(false)}
+        />
+      )}
     </>
-    {showEnviarFacturas && proyectoLocal && (
-      <ModalEnviarFacturas
-        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-        hitos={hitos}
-        usuarioEmail={usuarioEmail}
-        onClose={() => setShowEnviarFacturas(false)}
-      />
-    )}
   )
 }
