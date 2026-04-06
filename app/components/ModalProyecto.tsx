@@ -931,4 +931,3 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     </>
   )
 }
-
