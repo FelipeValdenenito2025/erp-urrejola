@@ -416,8 +416,10 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
   const totalCobrado  = hitos.reduce((a,h)=>a+(h.abonos||[]).reduce((x,ab)=>x+ab.monto,0),0)
   const totalCostos   = costos.reduce((a,c)=>a+c.monto,0)
   const totalPagado   = costos.reduce((a,c)=>a+(c.abonos||[]).reduce((x,ab)=>x+ab.monto,0),0)
-  const utilidad      = totalCobrado - totalPagado
-  const progCobro     = totalHitos>0 ? Math.min((totalCobrado/totalHitos)*100,100) : 0
+  const utilidad          = totalCobrado - totalPagado
+  const utilidadProyectada = totalHitos - totalCostos
+  const utilidadReal       = totalCobrado - totalPagado
+  const progCobro          = totalHitos>0 ? Math.min((totalCobrado/totalHitos)*100,100) : 0
   const lleno         = disponible <= 0
 
   function exportarExcelProyecto() {
@@ -481,6 +483,26 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     } catch(e: any) {
       alert('Error al generar Excel: ' + e.message)
     }
+  }
+
+  async function registrarComision() {
+    const presupuesto = (proyectoLocal.monto_base || 0) + (proyectoLocal.monto_extra || 0)
+    const comision = Math.round(presupuesto * 0.03)
+    const { error } = await supabase.from('costos').insert({
+      proyecto_id: proyectoLocal.id,
+      descripcion: 'Comisión 3%',
+      categoria: 'Honorarios',
+      monto: comision,
+      moneda: proyectoLocal.moneda,
+      estado_pago: 'Pendiente',
+    })
+    if (error) { alert('Error al registrar comisión: ' + error.message); return }
+    await supabase.rpc('registrar_log', {
+      p_usuario: 'sistema',
+      p_accion: 'Comisión registrada',
+      p_detalles: `3% de ${fmt(presupuesto, proyectoLocal.moneda)} = ${fmt(comision, proyectoLocal.moneda)}`
+    })
+    recargar()
   }
 
   function imprimirPDF(incluir: 'ambos' | 'ingresos' | 'costos') {
@@ -635,9 +657,17 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                     </div>
                   ))}
                 </div>
-                <div style={{ background: utilidad>=0?'#d1e7dd':'#fdecea', borderRadius:'8px', padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:'13px', fontWeight:'700', color: utilidad>=0?'#0a3622':'#842029' }}>💡 Utilidad neta (cobrado − pagado)</span>
-                  <span style={{ fontSize:'18px', fontWeight:'800', color: utilidad>=0?'#0a3622':'#842029' }}>{fmt(utilidad,proyectoLocal.moneda)}</span>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                  <div style={{ background: utilidadProyectada>=0?'#e8f5e9':'#fdecea', borderRadius:'8px', padding:'12px 14px', border: '1px dashed ' + (utilidadProyectada>=0?'#a5d6a7':'#ef9a9a') }}>
+                    <div style={{ fontSize:'11px', fontWeight:'600', color:'#555', marginBottom:'4px' }}>📈 Utilidad Proyectada</div>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color: utilidadProyectada>=0?'#1b5e20':'#842029' }}>{fmt(utilidadProyectada,proyectoLocal.moneda)}</div>
+                    <div style={{ fontSize:'10px', color:'#888', marginTop:'2px' }}>Total hitos − total costos</div>
+                  </div>
+                  <div style={{ background: utilidadReal>=0?'#d1e7dd':'#fdecea', borderRadius:'8px', padding:'12px 14px', border: '2px solid ' + (utilidadReal>=0?'#198754':'#dc3545') }}>
+                    <div style={{ fontSize:'11px', fontWeight:'600', color:'#555', marginBottom:'4px' }}>💰 Utilidad Real</div>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color: utilidadReal>=0?'#0a3622':'#842029' }}>{fmt(utilidadReal,proyectoLocal.moneda)}</div>
+                    <div style={{ fontSize:'10px', color:'#888', marginTop:'2px' }}>Cobrado − costos pagados</div>
+                  </div>
                 </div>
 
                 {/* Hitos */}
@@ -723,7 +753,25 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                 )}
 
                 {/* Costos */}
-                <Separador titulo="📤 Costos y Egresos" />
+                <Separador titulo="📤 Costos y Egresos" accion={
+                  <button
+                    onClick={async () => {
+                      const presupuesto = (proyectoLocal.monto_base||0)+(proyectoLocal.monto_extra||0)
+                      const comision = Math.round(presupuesto*0.03)
+                      const ok = await confirmar({
+                        titulo: 'Registrar Comisión',
+                        mensaje: `¿Registrar una comisión del 3% sobre el presupuesto total?
+
+Presupuesto: ${fmt(presupuesto,proyectoLocal.moneda)}
+Comisión (3%): ${fmt(comision,proyectoLocal.moneda)}`,
+                        labelConfirmar: '✓ Registrar comisión'
+                      })
+                      if (ok) registrarComision()
+                    }}
+                    style={{ fontSize:'11px', padding:'4px 12px', borderRadius:'6px', border:'none', background:'linear-gradient(135deg,#6f42c1,#5a32a3)', color:'white', cursor:'pointer', fontWeight:'600' }}>
+                    💜 Comisión 3%
+                  </button>
+                } />
                 <FormNuevoCosto proyectoId={proyectoLocal.id} onSave={recargar} />
                 {costos.length===0 ? (
                   <div style={{ textAlign:'center', padding:'24px', color:'#6c757d', background:'#f8f9fa', borderRadius:'8px', fontSize:'13px' }}>Sin costos registrados.</div>
@@ -789,20 +837,18 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
           </div>
         </div>
       </div>
-      
+
       {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
-      {showEnviarFacturas && proyectoLocal && (
-        <ModalEnviarFacturas
-          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
-          usuarioEmail={usuarioEmail}
-          onClose={() => setShowEnviarFacturas(false)}
-        />
-      )}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }
-
-

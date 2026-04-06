@@ -23,7 +23,6 @@ type Hito = {
   estado_pago: string
   estado_factura: string
   fecha_pago: string | null
-  abonos?: { monto: number; fecha: string }[]
 }
 
 type Costo = {
@@ -107,9 +106,14 @@ export default function Reporteria() {
 
   // Resumen por proyecto
   const resumenProyectos = proyectos.map(p => {
-    const ing = abonosFiltrados.filter(a => a.proyecto_id === p.id).reduce((a, ab) => a + ab.monto, 0)
-    const egr = costosFiltrados.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
-    return { ...p, ingresos: ing, egresos: egr, utilidad: ing - egr }
+    const ing          = abonosFiltrados.filter(a => a.proyecto_id === p.id).reduce((a, ab) => a + ab.monto, 0)
+    const egr          = costosFiltrados.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
+    const presupuesto  = (p.monto_base || 0) + (p.monto_extra || 0)
+    const totalHitos   = hitos.filter(h => h.proyecto_id === p.id).reduce((a, h) => a + h.monto, 0)
+    const totalCostos  = costos.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
+    const utilReal     = ing - egr
+    const utilProyect  = totalHitos - totalCostos
+    return { ...p, ingresos: ing, egresos: egr, utilidad: utilReal, utilReal, utilProyect, presupuesto }
   }).filter(p => p.ingresos > 0 || p.egresos > 0)
 
   function exportarExcel() {
@@ -208,7 +212,7 @@ export default function Reporteria() {
       </div>
       <div class="periodo">Período: <strong>${desde}</strong> al <strong>${hasta}</strong></div>
       <div class="summary">
-        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${abonosFiltrados.length} abonos recibidos</small></div>
+        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${hitosFiltrados.length} hitos pagados</small></div>
         <div class="box box-egr"><label>Egresos registrados</label><strong>${fmt(totalEgresos)}</strong><br><small>${costosFiltrados.length} costos</small></div>
         <div class="box box-uti"><label>Utilidad neta</label><strong>${fmt(utilidad)}</strong></div>
       </div>
@@ -330,10 +334,17 @@ export default function Reporteria() {
                       {p.estado}
                     </span>
                   </div>
-                  <div style={{ display:'flex', gap:'12px', marginTop:'6px', fontSize:'12px' }}>
+                  <div style={{ display:'flex', gap:'12px', marginTop:'6px', fontSize:'12px', flexWrap:'wrap' as const }}>
                     <span style={{ color:'#198754', fontWeight:'600' }}>↑ {fmt(p.ingresos, p.moneda)}</span>
                     <span style={{ color:'#842029', fontWeight:'600' }}>↓ {fmt(p.egresos, p.moneda)}</span>
-                    <span style={{ color: p.utilidad>=0?'#198754':'#dc3545', fontWeight:'700', marginLeft:'auto' }}>= {fmt(p.utilidad, p.moneda)}</span>
+                  </div>
+                  <div style={{ display:'flex', gap:'8px', marginTop:'6px', fontSize:'11px' }}>
+                    <span style={{ background: (p as any).utilReal>=0?'#d1e7dd':'#fdecea', color: (p as any).utilReal>=0?'#0a3622':'#842029', padding:'2px 8px', borderRadius:'6px', fontWeight:'700' }}>
+                      💰 Real: {fmt((p as any).utilReal, p.moneda)}
+                    </span>
+                    <span style={{ background: (p as any).utilProyect>=0?'#e8f5e9':'#fdecea', color: (p as any).utilProyect>=0?'#1b5e20':'#842029', padding:'2px 8px', borderRadius:'6px', fontWeight:'600', border:'1px dashed ' + ((p as any).utilProyect>=0?'#a5d6a7':'#ef9a9a') }}>
+                      📈 Proyectada: {fmt((p as any).utilProyect, p.moneda)}
+                    </span>
                   </div>
                 </div>
               ))}
