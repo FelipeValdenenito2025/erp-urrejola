@@ -431,7 +431,12 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
   const [showAmpliar, setShowAmpliar] = useState(false)
   const [proyectoLocal, setProyectoLocal] = useState<any>(proyecto)
 
-  useEffect(() => { cargar() }, [proyecto.id])
+  useEffect(() => {
+    cargar()
+    supabase.from('colaboradores').select('id,nombre,rut').order('nombre').then(({data}) => {
+      if(data) setColaboradores(data)
+    })
+  }, [proyecto.id])
 
   async function cargar() {
     setLoading(true)
@@ -913,7 +918,6 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
           onConfirm={(colabId, colabNombre, pct, monto) => { registrarComision(colabId, colabNombre, pct, monto); setShowComision(false) }}
         />
       )}
-     
 {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
@@ -928,3 +932,4 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     </>
   )
 }
+
