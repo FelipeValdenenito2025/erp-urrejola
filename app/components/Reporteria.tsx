@@ -23,7 +23,6 @@ type Hito = {
   estado_pago: string
   estado_factura: string
   fecha_pago: string | null
-  abonos?: { monto: number; fecha: string }[]
 }
 
 type Costo = {
@@ -35,6 +34,14 @@ type Costo = {
   moneda: string
   estado_pago: string
   created_at: string
+  colaborador_id?: string
+  colaboradores?: { nombre: string, rut: string }
+}
+
+type Colaborador = {
+  id: string
+  nombre: string
+  rut: string
 }
 
 const fmt = (n: number, m = 'CLP') =>
@@ -49,6 +56,7 @@ export default function Reporteria() {
   const [hitos, setHitos] = useState<Hito[]>([])
   const [costos, setCostos] = useState<Costo[]>([])
   const [loading, setLoading] = useState(true)
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [desde, setDesde] = useState(primerDiaMes)
   const [hasta, setHasta] = useState(hoyStr)
 
@@ -59,11 +67,13 @@ export default function Reporteria() {
     const [{ data: p }, { data: h }, { data: c }] = await Promise.all([
       supabase.from('proyectos').select('*').order('nombre'),
       supabase.from('hitos').select('*, abonos(*)').order('created_at'),
-      supabase.from('costos').select('*').order('created_at'),
+      supabase.from('costos').select('*, colaboradores(nombre,rut)').order('created_at'),
     ])
     if (p) setProyectos(p)
     if (h) setHitos(h)
     if (c) setCostos(c)
+    const { data: col } = await supabase.from('colaboradores').select('*').order('nombre')
+    if (col) setColaboradores(col)
     setLoading(false)
   }
 
@@ -154,6 +164,22 @@ export default function Reporteria() {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ingData), 'Ingresos')
 
       // Hoja egresos
+      // Hoja comisiones
+      const comisionesData = [
+        ['COMISIONES DEL PERÍODO'],
+        [`Desde: ${desde} | Hasta: ${hasta}`],
+        [],
+        ['Proyecto', 'Colaborador', 'RUT', 'Porcentaje', 'Monto', 'Estado'],
+        ...costosFiltrados
+          .filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión'))
+          .map(c => {
+            const p = proyectos.find(x => x.id === c.proyecto_id)
+            const colab = (c as any).colaboradores
+            return [p?.nombre||'', colab?.nombre||'—', colab?.rut||'—', '3%', c.monto, c.estado_pago]
+          }),
+      ]
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(comisionesData), 'Comisiones')
+
       const egrData = [
         ['EGRESOS DEL PERÍODO'],
         [`Desde: ${desde} | Hasta: ${hasta}`],
@@ -213,7 +239,7 @@ export default function Reporteria() {
       </div>
       <div class="periodo">Período: <strong>${desde}</strong> al <strong>${hasta}</strong></div>
       <div class="summary">
-        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${abonosFiltrados.length} abonos recibidos</small></div>
+        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${hitosFiltrados.length} hitos pagados</small></div>
         <div class="box box-egr"><label>Egresos registrados</label><strong>${fmt(totalEgresos)}</strong><br><small>${costosFiltrados.length} costos</small></div>
         <div class="box box-uti"><label>Utilidad neta</label><strong>${fmt(utilidad)}</strong></div>
       </div>
@@ -226,6 +252,15 @@ export default function Reporteria() {
       <table><thead><tr><th>Proyecto</th><th>Cliente</th><th>Hito</th><th>Fecha Pago</th><th>Monto</th></tr></thead>
       <tbody>${ingRows||'<tr><td colspan="5" style="text-align:center;color:#999">Sin ingresos en el período</td></tr>'}</tbody>
       <tr class="total"><td colspan="4">Total ingresos</td><td>${fmt(totalIngresos)}</td></tr>
+      </table>
+      <h2>COMISIONES DEL PERÍODO</h2>
+      <table><thead><tr><th>Proyecto</th><th>Colaborador</th><th>RUT</th><th>%</th><th style="text-align:right">Monto</th><th>Estado</th></tr></thead>
+      <tbody>${costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión')).map(c => {
+        const p = proyectos.find(x => x.id === c.proyecto_id)
+        const colab = (c as any).colaboradores
+        return `<tr><td>${p?.nombre||''}</td><td>${colab?.nombre||'—'}</td><td>${colab?.rut||'—'}</td><td>3%</td><td style="text-align:right">${fmt(c.monto)}</td><td>${c.estado_pago}</td></tr>`
+      }).join('')||'<tr><td colspan="6" style="text-align:center;color:#999">Sin comisiones</td></tr>'}</tbody>
+      <tr class="total"><td colspan="4">Total comisiones</td><td style="text-align:right">${fmt(costosFiltrados.filter(c=>c.categoria==='Honorarios'&&c.descripcion?.includes('Comisión')).reduce((a,c)=>a+c.monto,0))}</td><td></td></tr>
       </table>
       <h2>EGRESOS REGISTRADOS</h2>
       <table><thead><tr><th>Proyecto</th><th>Concepto</th><th>Categoría</th><th>Fecha</th><th>Monto</th></tr></thead>
@@ -357,7 +392,66 @@ export default function Reporteria() {
       {/* ── Tablas detalle ── */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
 
-        {/* Tabla ingresos */}
+        {/* Reporte Comisiones */}
+      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #eee', overflow:'hidden', marginBottom:'14px' }}>
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:'13px', fontWeight:'700', color:'#6f42c1' }}>💜 Comisiones del período</div>
+          <div style={{ fontSize:'12px', fontWeight:'700', color:'#6f42c1' }}>
+            {fmt(costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión')).reduce((a,c) => a+c.monto, 0))}
+          </div>
+        </div>
+        {(() => {
+          const comisionesPeriodo = costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión'))
+          if (comisionesPeriodo.length === 0) return (
+            <div style={{ textAlign:'center', padding:'20px', color:'#aaa', fontSize:'13px' }}>Sin comisiones en el período</div>
+          )
+          return (
+            <div style={{ overflowX:'auto' as const }}>
+              <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const }}>
+                <thead>
+                  <tr style={{ background:'#f3f0ff' }}>
+                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6f42c1', fontWeight:'600' }}>Proyecto</th>
+                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6f42c1', fontWeight:'600' }}>Colaborador</th>
+                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6f42c1', fontWeight:'600' }}>RUT</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'600' }}>%</th>
+                    <th style={{ padding:'8px 10px', textAlign:'right' as const, color:'#6f42c1', fontWeight:'600' }}>Monto</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'600' }}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comisionesPeriodo.map((c, idx) => {
+                    const p = proyectos.find(x => x.id === c.proyecto_id)
+                    const colab = (c as any).colaboradores
+                    return (
+                      <tr key={c.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
+                        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
+                        <td style={{ padding:'7px 10px', color:'#6f42c1', fontWeight:'600', fontSize:'11px' }}>{colab?.nombre || '—'}</td>
+                        <td style={{ padding:'7px 10px', color:'#6c757d', fontSize:'11px' }}>{colab?.rut || '—'}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'700', fontSize:'11px' }}>3%</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#6f42c1', fontSize:'11px' }}>{fmt(c.monto)}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'center' as const }}>
+                          <span style={{ fontSize:'10px', padding:'2px 7px', borderRadius:'8px', background: c.estado_pago==='Pagado'?'#d1e7dd':'#fff3cd', color: c.estado_pago==='Pagado'?'#0a3622':'#856404', fontWeight:'600' }}>
+                            {c.estado_pago}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  <tr style={{ borderTop:'2px solid #6f42c1', background:'#f3f0ff' }}>
+                    <td colSpan={4} style={{ padding:'7px 10px', fontWeight:'700', color:'#6f42c1', fontSize:'12px' }}>Total comisiones</td>
+                    <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#6f42c1', fontSize:'13px' }}>
+                      {fmt(comisionesPeriodo.reduce((a,c) => a+c.monto, 0))}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )
+        })()}
+      </div>
+
+      {/* Tabla ingresos */}
         <div style={{ background:'white', borderRadius:'12px', border:'1px solid #eee', overflow:'hidden' }}>
           <div style={{ padding:'12px 16px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366' }}>💰 Ingresos del período</div>
