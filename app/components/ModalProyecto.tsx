@@ -818,19 +818,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                 {/* Costos */}
                 <Separador titulo="📤 Costos y Egresos" accion={
                   <button
-                    onClick={async () => {
-                      const presupuesto = (proyectoLocal.monto_base||0)+(proyectoLocal.monto_extra||0)
-                      const comision = Math.round(presupuesto*0.03)
-                      const ok = await confirmar({
-                        titulo: 'Registrar Comisión',
-                        mensaje: `¿Registrar una comisión del 3% sobre el presupuesto total?
-
-Presupuesto: ${fmt(presupuesto,proyectoLocal.moneda)}
-Comisión (3%): ${fmt(comision,proyectoLocal.moneda)}`,
-                        labelConfirmar: '✓ Registrar comisión'
-                      })
-                      if (ok) registrarComision()
-                    }}
+                    onClick={() => setShowComision(true)}
                     style={{ fontSize:'11px', padding:'4px 12px', borderRadius:'6px', border:'none', background:'linear-gradient(135deg,#6f42c1,#5a32a3)', color:'white', cursor:'pointer', fontWeight:'600' }}>
                     💜 Comisión 3%
                   </button>
@@ -913,16 +901,14 @@ Comisión (3%): ${fmt(comision,proyectoLocal.moneda)}`,
       {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
-      {showEnviarFacturas && proyectoLocal && (
-        <ModalEnviarFacturas
-          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
-          usuarioEmail={usuarioEmail}
-          onClose={() => setShowEnviarFacturas(false)}
-        />
-      )}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }
-
-
