@@ -23,6 +23,7 @@ type Hito = {
   estado_pago: string
   estado_factura: string
   fecha_pago: string | null
+  abonos?: { monto: number; fecha: string }[]
 }
 
 type Costo = {
