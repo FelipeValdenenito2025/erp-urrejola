@@ -48,9 +48,136 @@ type Colaborador = {
 const fmt = (n: number, m = 'CLP') =>
   m === 'USD' ? 'USD ' + (n||0).toLocaleString('es-CL') : '$' + (n||0).toLocaleString('es-CL')
 
+const FILAS_VISIBLES = 5
+
 const hoy = new Date()
 const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
 const hoyStr = hoy.toISOString().split('T')[0]
+
+// ── Componente tabla colapsable ──────────────────────────
+function TablaColapsable({ titulo, color, total, headers, rows, emptyMsg }: {
+  titulo: string
+  color: string
+  total: string
+  headers: string[]
+  rows: React.ReactNode[]
+  emptyMsg: string
+}) {
+  const [expandido, setExpandido] = useState(false)
+  const visibles = expandido ? rows : rows.slice(0, FILAS_VISIBLES)
+  const hayMas = rows.length > FILAS_VISIBLES
+
+  return (
+    <div style={{ background:'white', borderRadius:'12px', border:'1px solid #eee', overflow:'hidden' }}>
+      <div style={{ padding:'12px 16px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ fontSize:'13px', fontWeight:'700', color }}>{titulo}</div>
+        <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+          <div style={{ fontSize:'12px', fontWeight:'700', color }}>{total}</div>
+          {hayMas && (
+            <button onClick={() => setExpandido(v => !v)} style={{
+              fontSize:'11px', padding:'3px 10px', borderRadius:'6px',
+              border:`1px solid ${color}`, background:'white', color, cursor:'pointer', fontWeight:'600'
+            }}>
+              {expandido ? '▲ Ver menos' : `▼ Ver más (${rows.length - FILAS_VISIBLES} más)`}
+            </button>
+          )}
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'24px', color:'#aaa', fontSize:'13px' }}>{emptyMsg}</div>
+      ) : (
+        <div style={{ overflowX:'auto' as const }}>
+          <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const }}>
+            <thead>
+              <tr style={{ background:'#f8f9fa' }}>
+                {headers.map(h => (
+                  <th key={h} style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>{visibles}</tbody>
+          </table>
+          {hayMas && (
+            <div style={{ textAlign:'center', padding:'10px', borderTop:'1px solid #f0f0f0' }}>
+              <button onClick={() => setExpandido(v => !v)} style={{
+                fontSize:'12px', padding:'5px 16px', borderRadius:'7px',
+                border:`1px solid ${color}`, background:'white', color, cursor:'pointer', fontWeight:'600'
+              }}>
+                {expandido ? '▲ Ver menos' : `▼ Ver todos (${rows.length} registros)`}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Componente resumen proyectos colapsable ──────────────
+function ResumenProyectos({ proyectos: items }: { proyectos: any[] }) {
+  const [expandido, setExpandido] = useState(false)
+  const visibles = expandido ? items : items.slice(0, FILAS_VISIBLES)
+  const hayMas = items.length > FILAS_VISIBLES
+
+  return (
+    <div style={{ background:'white', borderRadius:'12px', padding:'16px', border:'1px solid #eee' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+        <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366' }}>📁 Resumen por proyecto</div>
+        {hayMas && (
+          <button onClick={() => setExpandido(v => !v)} style={{
+            fontSize:'11px', padding:'3px 10px', borderRadius:'6px',
+            border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600'
+          }}>
+            {expandido ? '▲ Ver menos' : `▼ Ver más (${items.length - FILAS_VISIBLES} más)`}
+          </button>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'20px', color:'#aaa', fontSize:'13px' }}>Sin movimientos en el período</div>
+      ) : (
+        <>
+          <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+            {visibles.map(p => (
+              <div key={p.id} style={{ padding:'10px 12px', background:'#f8f9fa', borderRadius:'8px', borderLeft:`4px solid ${p.utilidad>=0?'#198754':'#dc3545'}` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize:'13px', fontWeight:'600', color:'#003366' }}>{p.nombre}</div>
+                    <div style={{ fontSize:'11px', color:'#6c757d' }}>{p.cliente}</div>
+                  </div>
+                  <span style={{ fontSize:'11px', padding:'2px 7px', borderRadius:'8px', background: p.estado==='Abierto'?'#e3f2fd':'#e8f5e9', color: p.estado==='Abierto'?'#0d47a1':'#1b5e20', fontWeight:'600' }}>
+                    {p.estado}
+                  </span>
+                </div>
+                <div style={{ display:'flex', gap:'12px', marginTop:'6px', fontSize:'12px', flexWrap:'wrap' as const }}>
+                  <span style={{ color:'#198754', fontWeight:'600' }}>↑ {fmt(p.ingresos, p.moneda)}</span>
+                  <span style={{ color:'#842029', fontWeight:'600' }}>↓ {fmt(p.egresos, p.moneda)}</span>
+                </div>
+                <div style={{ display:'flex', gap:'8px', marginTop:'6px', fontSize:'11px' }}>
+                  <span style={{ background: p.utilReal>=0?'#d1e7dd':'#fdecea', color: p.utilReal>=0?'#0a3622':'#842029', padding:'2px 8px', borderRadius:'6px', fontWeight:'700' }}>
+                    💰 Real: {fmt(p.utilReal, p.moneda)}
+                  </span>
+                  <span style={{ background: p.utilProyect>=0?'#e8f5e9':'#fdecea', color: p.utilProyect>=0?'#1b5e20':'#842029', padding:'2px 8px', borderRadius:'6px', fontWeight:'600', border:'1px dashed ' + (p.utilProyect>=0?'#a5d6a7':'#ef9a9a') }}>
+                    📈 Proyectada: {fmt(p.utilProyect, p.moneda)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {hayMas && (
+            <div style={{ textAlign:'center', marginTop:'10px' }}>
+              <button onClick={() => setExpandido(v => !v)} style={{
+                fontSize:'12px', padding:'5px 16px', borderRadius:'7px',
+                border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600'
+              }}>
+                {expandido ? '▲ Ver menos' : `▼ Ver todos (${items.length} proyectos)`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
 
 export default function Reporteria() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -81,7 +208,6 @@ export default function Reporteria() {
   const desdeDate = new Date(desde + 'T00:00:00')
   const hastaDate = new Date(hasta + 'T23:59:59')
 
-  // Abonos de hitos en el período (incluye parciales y totales)
   type AbonoHito = { monto: number; fecha: string; hito_id: string; proyecto_id: string; descripcion: string; moneda: string }
   const abonosFiltrados: AbonoHito[] = []
   hitos.forEach(h => {
@@ -89,18 +215,14 @@ export default function Reporteria() {
       const f = new Date(a.fecha + 'T12:00:00')
       if (f >= desdeDate && f <= hastaDate) {
         abonosFiltrados.push({
-          monto: a.monto,
-          fecha: a.fecha,
-          hito_id: h.id,
-          proyecto_id: h.proyecto_id,
-          descripcion: h.descripcion,
+          monto: a.monto, fecha: a.fecha, hito_id: h.id,
+          proyecto_id: h.proyecto_id, descripcion: h.descripcion,
           moneda: proyectos.find(p => p.id === h.proyecto_id)?.moneda || 'CLP',
         })
       }
     })
   })
 
-  // Costos registrados en el período
   const costosFiltrados = costos.filter(c => {
     const f = new Date(c.created_at)
     return f >= desdeDate && f <= hastaDate
@@ -110,29 +232,27 @@ export default function Reporteria() {
   const totalEgresos  = costosFiltrados.reduce((a, c) => a + c.monto, 0)
   const utilidad      = totalIngresos - totalEgresos
 
-  // Egresos por categoría
   const porCategoria: Record<string, number> = {}
   costosFiltrados.forEach(c => {
     porCategoria[c.categoria] = (porCategoria[c.categoria] || 0) + c.monto
   })
 
-  // Resumen por proyecto
   const resumenProyectos = proyectos.map(p => {
-    const ing          = abonosFiltrados.filter(a => a.proyecto_id === p.id).reduce((a, ab) => a + ab.monto, 0)
-    const egr          = costosFiltrados.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
-    const presupuesto  = (p.monto_base || 0) + (p.monto_extra || 0)
-    const totalHitos   = hitos.filter(h => h.proyecto_id === p.id).reduce((a, h) => a + h.monto, 0)
-    const totalCostos  = costos.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
-    const utilReal     = ing - egr
-    const utilProyect  = totalHitos - totalCostos
+    const ing         = abonosFiltrados.filter(a => a.proyecto_id === p.id).reduce((a, ab) => a + ab.monto, 0)
+    const egr         = costosFiltrados.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
+    const presupuesto = (p.monto_base || 0) + (p.monto_extra || 0)
+    const totalHitos  = hitos.filter(h => h.proyecto_id === p.id).reduce((a, h) => a + h.monto, 0)
+    const totalCostos = costos.filter(c => c.proyecto_id === p.id).reduce((a, c) => a + c.monto, 0)
+    const utilReal    = ing - egr
+    const utilProyect = totalHitos - totalCostos
     return { ...p, ingresos: ing, egresos: egr, utilidad: utilReal, utilReal, utilProyect, presupuesto }
   }).filter(p => p.ingresos > 0 || p.egresos > 0)
+
+  const comisionesPeriodo = costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión'))
 
   function exportarExcel() {
     try {
       const wb = XLSX.utils.book_new()
-
-      // Hoja resumen general
       const resumenData = [
         ['REPORTE GLOBAL ERP URREJOLA'],
         [`Período: ${desde} al ${hasta}`],
@@ -149,52 +269,38 @@ export default function Reporteria() {
       ]
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenData), 'Resumen')
 
-      // Hoja ingresos
       const ingData = [
-        ['INGRESOS DEL PERÍODO'],
-        [`Desde: ${desde} | Hasta: ${hasta}`],
-        [],
+        ['INGRESOS DEL PERÍODO'], [`Desde: ${desde} | Hasta: ${hasta}`], [],
         ['Proyecto', 'Cliente', 'Hito', 'Fecha Abono', 'Monto'],
         ...abonosFiltrados.map(ab => {
           const p = proyectos.find(x => x.id === ab.proyecto_id)
           return [p?.nombre||'', p?.cliente||'', ab.descripcion, ab.fecha, ab.monto]
         }),
-        [],
-        ['', '', '', 'TOTAL', totalIngresos],
+        [], ['', '', '', 'TOTAL', totalIngresos],
       ]
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ingData), 'Ingresos')
 
-      // Hoja egresos
-      // Hoja comisiones
       const comisionesData = [
-        ['COMISIONES DEL PERÍODO'],
-        [`Desde: ${desde} | Hasta: ${hasta}`],
-        [],
+        ['COMISIONES DEL PERÍODO'], [`Desde: ${desde} | Hasta: ${hasta}`], [],
         ['Proyecto', 'Colaborador', 'RUT', 'Porcentaje', 'Monto', 'Estado'],
-        ...costosFiltrados
-          .filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión'))
-          .map(c => {
-            const p = proyectos.find(x => x.id === c.proyecto_id)
-            const colab = (c as any).colaboradores
-            return [p?.nombre||'', colab?.nombre||'—', colab?.rut||'—', '3%', c.monto, c.estado_pago]
-          }),
+        ...comisionesPeriodo.map(c => {
+          const p = proyectos.find(x => x.id === c.proyecto_id)
+          const colab = (c as any).colaboradores
+          return [p?.nombre||'', colab?.nombre||'—', colab?.rut||'—', '3%', c.monto, c.estado_pago]
+        }),
       ]
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(comisionesData), 'Comisiones')
 
       const egrData = [
-        ['EGRESOS DEL PERÍODO'],
-        [`Desde: ${desde} | Hasta: ${hasta}`],
-        [],
+        ['EGRESOS DEL PERÍODO'], [`Desde: ${desde} | Hasta: ${hasta}`], [],
         ['Proyecto', 'Cliente', 'Concepto', 'Categoría', 'Fecha Reg.', 'Estado', 'Monto', 'Moneda'],
         ...costosFiltrados.map(c => {
           const p = proyectos.find(x => x.id === c.proyecto_id)
           return [p?.nombre||'', p?.cliente||'', c.descripcion, c.categoria, c.created_at.split('T')[0], c.estado_pago, c.monto, c.moneda]
         }),
-        [],
-        ['', '', '', '', '', 'TOTAL', totalEgresos, ''],
+        [], ['', '', '', '', '', 'TOTAL', totalEgresos, ''],
       ]
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(egrData), 'Egresos')
-
       XLSX.writeFile(wb, `Reporte_ERP_${desde}_al_${hasta}.xlsx`)
     } catch (e: any) {
       alert('Error al generar Excel: ' + e.message)
@@ -217,7 +323,6 @@ export default function Reporteria() {
     const win = window.open('', '_blank')!
     win.document.write(`<html><head><title>Reporte ERP</title><style>
       body{font-family:'Segoe UI',sans-serif;padding:30px;color:#333;font-size:12px}
-      img{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
       .header{display:flex;align-items:center;gap:16px;margin-bottom:6px}
       .header img{height:40px}
       h1{color:#003366;font-size:18px;margin:0}
@@ -234,38 +339,35 @@ export default function Reporteria() {
       tr:nth-child(even) td{background:#f8f9fa}
       .total td{font-weight:700;border-top:2px solid #003366;background:#f0f4ff}
     </style></head><body>
-      <div class="header">
-        <img src="https://i.imgur.com/U7FK19x.png" />
-        <div><h1>Reporte Global ERP Urrejola</h1></div>
-      </div>
+      <div class="header"><img src="https://i.imgur.com/U7FK19x.png" /><div><h1>Reporte Global ERP Urrejola</h1></div></div>
       <div class="periodo">Período: <strong>${desde}</strong> al <strong>${hasta}</strong></div>
       <div class="summary">
-        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${abonosFiltrados.length} abonos recibidos</small></div>
+        <div class="box box-ing"><label>Ingresos cobrados</label><strong>${fmt(totalIngresos)}</strong><br><small>${abonosFiltrados.length} abonos</small></div>
         <div class="box box-egr"><label>Egresos registrados</label><strong>${fmt(totalEgresos)}</strong><br><small>${costosFiltrados.length} costos</small></div>
         <div class="box box-uti"><label>Utilidad neta</label><strong>${fmt(utilidad)}</strong></div>
       </div>
       <h2>RESUMEN POR PROYECTO</h2>
       <table><thead><tr><th>Proyecto</th><th>Cliente</th><th>Estado</th><th>Ingresos</th><th>Egresos</th><th>Utilidad</th></tr></thead>
       <tbody>${resRows||'<tr><td colspan="6" style="text-align:center;color:#999">Sin movimientos</td></tr>'}</tbody>
-      <tr class="total"><td colspan="3" style="padding:6px 8px">TOTALES</td><td style="padding:6px 8px">${fmt(totalIngresos)}</td><td style="padding:6px 8px">${fmt(totalEgresos)}</td><td style="padding:6px 8px">${fmt(utilidad)}</td></tr>
+      <tr class="total"><td colspan="3">TOTALES</td><td>${fmt(totalIngresos)}</td><td>${fmt(totalEgresos)}</td><td>${fmt(utilidad)}</td></tr>
       </table>
-      <h2>INGRESOS RECIBIDOS (HITOS PAGADOS)</h2>
+      <h2>INGRESOS RECIBIDOS</h2>
       <table><thead><tr><th>Proyecto</th><th>Cliente</th><th>Hito</th><th>Fecha Pago</th><th>Monto</th></tr></thead>
-      <tbody>${ingRows||'<tr><td colspan="5" style="text-align:center;color:#999">Sin ingresos en el período</td></tr>'}</tbody>
+      <tbody>${ingRows||'<tr><td colspan="5" style="text-align:center;color:#999">Sin ingresos</td></tr>'}</tbody>
       <tr class="total"><td colspan="4">Total ingresos</td><td>${fmt(totalIngresos)}</td></tr>
       </table>
       <h2>COMISIONES DEL PERÍODO</h2>
-      <table><thead><tr><th>Proyecto</th><th>Colaborador</th><th>RUT</th><th>%</th><th style="text-align:right">Monto</th><th>Estado</th></tr></thead>
-      <tbody>${costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión')).map(c => {
+      <table><thead><tr><th>Proyecto</th><th>Colaborador</th><th>RUT</th><th>%</th><th>Monto</th><th>Estado</th></tr></thead>
+      <tbody>${comisionesPeriodo.map(c => {
         const p = proyectos.find(x => x.id === c.proyecto_id)
         const colab = (c as any).colaboradores
         return `<tr><td>${p?.nombre||''}</td><td>${colab?.nombre||'—'}</td><td>${colab?.rut||'—'}</td><td>3%</td><td style="text-align:right">${fmt(c.monto)}</td><td>${c.estado_pago}</td></tr>`
       }).join('')||'<tr><td colspan="6" style="text-align:center;color:#999">Sin comisiones</td></tr>'}</tbody>
-      <tr class="total"><td colspan="4">Total comisiones</td><td style="text-align:right">${fmt(costosFiltrados.filter(c=>c.categoria==='Honorarios'&&c.descripcion?.includes('Comisión')).reduce((a,c)=>a+c.monto,0))}</td><td></td></tr>
+      <tr class="total"><td colspan="4">Total comisiones</td><td style="text-align:right">${fmt(comisionesPeriodo.reduce((a,c)=>a+c.monto,0))}</td><td></td></tr>
       </table>
       <h2>EGRESOS REGISTRADOS</h2>
       <table><thead><tr><th>Proyecto</th><th>Concepto</th><th>Categoría</th><th>Fecha</th><th>Monto</th></tr></thead>
-      <tbody>${egrRows||'<tr><td colspan="5" style="text-align:center;color:#999">Sin egresos en el período</td></tr>'}</tbody>
+      <tbody>${egrRows||'<tr><td colspan="5" style="text-align:center;color:#999">Sin egresos</td></tr>'}</tbody>
       <tr class="total"><td colspan="4">Total egresos</td><td>${fmt(totalEgresos)}</td></tr>
       </table>
       <script>window.onload=()=>{window.print();window.close()}</script>
@@ -277,9 +379,74 @@ export default function Reporteria() {
     <div style={{ textAlign:'center', padding:'60px', color:'#6c757d' }}>Cargando...</div>
   )
 
+  // Filas tablas
+  const filasIngresos = abonosFiltrados.map((ab, idx) => {
+    const p = proyectos.find(x => x.id === ab.proyecto_id)
+    return (
+      <tr key={idx} style={{ borderBottom:'1px solid #f0f0f0' }}>
+        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
+        <td style={{ padding:'7px 10px', color:'#374151', fontSize:'11px' }}>{ab.descripcion}</td>
+        <td style={{ padding:'7px 10px', color:'#6c757d', fontSize:'11px' }}>{ab.fecha}</td>
+        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#198754', fontSize:'11px' }}>{fmt(ab.monto, ab.moneda)}</td>
+      </tr>
+    )
+  })
+  filasIngresos.push(
+    <tr key="total-ing" style={{ borderTop:'2px solid #003366', background:'#f0f4ff' }}>
+      <td colSpan={3} style={{ padding:'7px 10px', fontWeight:'700', color:'#003366', fontSize:'12px' }}>Total</td>
+      <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#198754', fontSize:'13px' }}>{fmt(totalIngresos)}</td>
+    </tr>
+  )
+
+  const filasEgresos = costosFiltrados.map(c => {
+    const p = proyectos.find(x => x.id === c.proyecto_id)
+    return (
+      <tr key={c.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
+        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
+        <td style={{ padding:'7px 10px', color:'#374151', fontSize:'11px' }}>{c.descripcion}</td>
+        <td style={{ padding:'7px 10px', color:'#6c757d', fontSize:'11px' }}>{c.categoria}</td>
+        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#842029', fontSize:'11px' }}>{fmt(c.monto, c.moneda)}</td>
+      </tr>
+    )
+  })
+  filasEgresos.push(
+    <tr key="total-egr" style={{ borderTop:'2px solid #d9534f', background:'#fff5f5' }}>
+      <td colSpan={3} style={{ padding:'7px 10px', fontWeight:'700', color:'#842029', fontSize:'12px' }}>Total</td>
+      <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#842029', fontSize:'13px' }}>{fmt(totalEgresos)}</td>
+    </tr>
+  )
+
+  const filasComisiones = comisionesPeriodo.map(c => {
+    const p = proyectos.find(x => x.id === c.proyecto_id)
+    const colab = (c as any).colaboradores
+    return (
+      <tr key={c.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
+        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
+        <td style={{ padding:'7px 10px', color:'#6f42c1', fontWeight:'600', fontSize:'11px' }}>{colab?.nombre || '—'}</td>
+        <td style={{ padding:'7px 10px', color:'#6c757d', fontSize:'11px' }}>{colab?.rut || '—'}</td>
+        <td style={{ padding:'7px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'700', fontSize:'11px' }}>3%</td>
+        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#6f42c1', fontSize:'11px' }}>{fmt(c.monto)}</td>
+        <td style={{ padding:'7px 10px', textAlign:'center' as const }}>
+          <span style={{ fontSize:'10px', padding:'2px 7px', borderRadius:'8px', background: c.estado_pago==='Pagado'?'#d1e7dd':'#fff3cd', color: c.estado_pago==='Pagado'?'#0a3622':'#856404', fontWeight:'600' }}>
+            {c.estado_pago}
+          </span>
+        </td>
+      </tr>
+    )
+  })
+  filasComisiones.push(
+    <tr key="total-com" style={{ borderTop:'2px solid #6f42c1', background:'#f3f0ff' }}>
+      <td colSpan={4} style={{ padding:'7px 10px', fontWeight:'700', color:'#6f42c1', fontSize:'12px' }}>Total comisiones</td>
+      <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#6f42c1', fontSize:'13px' }}>
+        {fmt(comisionesPeriodo.reduce((a,c) => a+c.monto, 0))}
+      </td>
+      <td></td>
+    </tr>
+  )
+
   return (
     <div>
-      {/* ── Controles ── */}
+      {/* Controles */}
       <div style={{ background:'white', borderRadius:'12px', padding:'16px 20px', marginBottom:'16px', border:'1px solid #eee' }}>
         <div style={{ display:'flex', gap:'16px', alignItems:'flex-end', flexWrap:'wrap' as const }}>
           <div>
@@ -306,7 +473,7 @@ export default function Reporteria() {
         </div>
       </div>
 
-      {/* ── Tarjetas resumen ── */}
+      {/* Tarjetas resumen */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'16px' }}>
         <div style={{ background:'linear-gradient(135deg,#003366,#00509d)', borderRadius:'12px', padding:'18px', color:'white' }}>
           <div style={{ fontSize:'11px', opacity:0.8, textTransform:'uppercase' as const, letterSpacing:'0.5px', marginBottom:'4px' }}>Ingresos cobrados</div>
@@ -325,9 +492,8 @@ export default function Reporteria() {
         </div>
       </div>
 
-      {/* ── Contenido principal ── */}
+      {/* Contenido principal */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'14px' }}>
-
         {/* Egresos por categoría */}
         <div style={{ background:'white', borderRadius:'12px', padding:'16px', border:'1px solid #eee' }}>
           <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366', marginBottom:'14px' }}>📊 Egresos por categoría</div>
@@ -353,186 +519,36 @@ export default function Reporteria() {
           )}
         </div>
 
-        {/* Resumen por proyecto */}
-        <div style={{ background:'white', borderRadius:'12px', padding:'16px', border:'1px solid #eee' }}>
-          <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366', marginBottom:'14px' }}>📁 Resumen por proyecto</div>
-          {resumenProyectos.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'20px', color:'#aaa', fontSize:'13px' }}>Sin movimientos en el período</div>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-              {resumenProyectos.map(p => (
-                <div key={p.id} style={{ padding:'10px 12px', background:'#f8f9fa', borderRadius:'8px', borderLeft:`4px solid ${p.utilidad>=0?'#198754':'#dc3545'}` }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize:'13px', fontWeight:'600', color:'#003366' }}>{p.nombre}</div>
-                      <div style={{ fontSize:'11px', color:'#6c757d' }}>{p.cliente}</div>
-                    </div>
-                    <span style={{ fontSize:'11px', padding:'2px 7px', borderRadius:'8px', background: p.estado==='Abierto'?'#e3f2fd':'#e8f5e9', color: p.estado==='Abierto'?'#0d47a1':'#1b5e20', fontWeight:'600' }}>
-                      {p.estado}
-                    </span>
-                  </div>
-                  <div style={{ display:'flex', gap:'12px', marginTop:'6px', fontSize:'12px', flexWrap:'wrap' as const }}>
-                    <span style={{ color:'#198754', fontWeight:'600' }}>↑ {fmt(p.ingresos, p.moneda)}</span>
-                    <span style={{ color:'#842029', fontWeight:'600' }}>↓ {fmt(p.egresos, p.moneda)}</span>
-                  </div>
-                  <div style={{ display:'flex', gap:'8px', marginTop:'6px', fontSize:'11px' }}>
-                    <span style={{ background: (p as any).utilReal>=0?'#d1e7dd':'#fdecea', color: (p as any).utilReal>=0?'#0a3622':'#842029', padding:'2px 8px', borderRadius:'6px', fontWeight:'700' }}>
-                      💰 Real: {fmt((p as any).utilReal, p.moneda)}
-                    </span>
-                    <span style={{ background: (p as any).utilProyect>=0?'#e8f5e9':'#fdecea', color: (p as any).utilProyect>=0?'#1b5e20':'#842029', padding:'2px 8px', borderRadius:'6px', fontWeight:'600', border:'1px dashed ' + ((p as any).utilProyect>=0?'#a5d6a7':'#ef9a9a') }}>
-                      📈 Proyectada: {fmt((p as any).utilProyect, p.moneda)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Resumen por proyecto colapsable */}
+        <ResumenProyectos proyectos={resumenProyectos} />
       </div>
 
-      {/* ── Tablas detalle ── */}
+      {/* Tablas detalle colapsables */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
-
-        {/* Reporte Comisiones */}
-      <div style={{ background:'white', borderRadius:'12px', border:'1px solid #eee', overflow:'hidden', marginBottom:'14px' }}>
-        <div style={{ padding:'12px 16px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontSize:'13px', fontWeight:'700', color:'#6f42c1' }}>💜 Comisiones del período</div>
-          <div style={{ fontSize:'12px', fontWeight:'700', color:'#6f42c1' }}>
-            {fmt(costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión')).reduce((a,c) => a+c.monto, 0))}
-          </div>
-        </div>
-        {(() => {
-          const comisionesPeriodo = costosFiltrados.filter(c => c.categoria === 'Honorarios' && c.descripcion?.includes('Comisión'))
-          if (comisionesPeriodo.length === 0) return (
-            <div style={{ textAlign:'center', padding:'20px', color:'#aaa', fontSize:'13px' }}>Sin comisiones en el período</div>
-          )
-          return (
-            <div style={{ overflowX:'auto' as const }}>
-              <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const }}>
-                <thead>
-                  <tr style={{ background:'#f3f0ff' }}>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6f42c1', fontWeight:'600' }}>Proyecto</th>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6f42c1', fontWeight:'600' }}>Colaborador</th>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6f42c1', fontWeight:'600' }}>RUT</th>
-                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'600' }}>%</th>
-                    <th style={{ padding:'8px 10px', textAlign:'right' as const, color:'#6f42c1', fontWeight:'600' }}>Monto</th>
-                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'600' }}>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comisionesPeriodo.map((c, idx) => {
-                    const p = proyectos.find(x => x.id === c.proyecto_id)
-                    const colab = (c as any).colaboradores
-                    return (
-                      <tr key={c.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
-                        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
-                        <td style={{ padding:'7px 10px', color:'#6f42c1', fontWeight:'600', fontSize:'11px' }}>{colab?.nombre || '—'}</td>
-                        <td style={{ padding:'7px 10px', color:'#6c757d', fontSize:'11px' }}>{colab?.rut || '—'}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'center' as const, color:'#6f42c1', fontWeight:'700', fontSize:'11px' }}>3%</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#6f42c1', fontSize:'11px' }}>{fmt(c.monto)}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'center' as const }}>
-                          <span style={{ fontSize:'10px', padding:'2px 7px', borderRadius:'8px', background: c.estado_pago==='Pagado'?'#d1e7dd':'#fff3cd', color: c.estado_pago==='Pagado'?'#0a3622':'#856404', fontWeight:'600' }}>
-                            {c.estado_pago}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  <tr style={{ borderTop:'2px solid #6f42c1', background:'#f3f0ff' }}>
-                    <td colSpan={4} style={{ padding:'7px 10px', fontWeight:'700', color:'#6f42c1', fontSize:'12px' }}>Total comisiones</td>
-                    <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#6f42c1', fontSize:'13px' }}>
-                      {fmt(comisionesPeriodo.reduce((a,c) => a+c.monto, 0))}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )
-        })()}
-      </div>
-
-      {/* Tabla ingresos */}
-        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #eee', overflow:'hidden' }}>
-          <div style={{ padding:'12px 16px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366' }}>💰 Ingresos del período</div>
-            <div style={{ fontSize:'12px', fontWeight:'700', color:'#198754' }}>{fmt(totalIngresos)}</div>
-          </div>
-          {abonosFiltrados.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'24px', color:'#aaa', fontSize:'13px' }}>Sin ingresos en el período</div>
-          ) : (
-            <div style={{ overflowX:'auto' as const }}>
-              <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const }}>
-                <thead>
-                  <tr style={{ background:'#f8f9fa' }}>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Proyecto</th>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Hito</th>
-                    <th style={{ padding:'8px 10px', textAlign:'center' as const, color:'#6c757d', fontWeight:'600' }}>Fecha Abono</th>
-                    <th style={{ padding:'8px 10px', textAlign:'right' as const, color:'#6c757d', fontWeight:'600' }}>Monto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {abonosFiltrados.map((ab, idx) => {
-                    const p = proyectos.find(x => x.id === ab.proyecto_id)
-                    return (
-                      <tr key={idx} style={{ borderBottom:'1px solid #f0f0f0' }}>
-                        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
-                        <td style={{ padding:'7px 10px', color:'#374151', fontSize:'11px' }}>{ab.descripcion}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'center' as const, color:'#6c757d', fontSize:'11px' }}>{ab.fecha}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#198754', fontSize:'11px' }}>{fmt(ab.monto, ab.moneda)}</td>
-                      </tr>
-                    )
-                  })}
-                  <tr style={{ borderTop:'2px solid #003366', background:'#f0f4ff' }}>
-                    <td colSpan={3} style={{ padding:'7px 10px', fontWeight:'700', color:'#003366', fontSize:'12px' }}>Total</td>
-                    <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#198754', fontSize:'13px' }}>{fmt(totalIngresos)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Tabla egresos */}
-        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #eee', overflow:'hidden' }}>
-          <div style={{ padding:'12px 16px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div style={{ fontSize:'13px', fontWeight:'700', color:'#842029' }}>📤 Egresos del período</div>
-            <div style={{ fontSize:'12px', fontWeight:'700', color:'#842029' }}>{fmt(totalEgresos)}</div>
-          </div>
-          {costosFiltrados.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'24px', color:'#aaa', fontSize:'13px' }}>Sin egresos en el período</div>
-          ) : (
-            <div style={{ overflowX:'auto' as const }}>
-              <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const }}>
-                <thead>
-                  <tr style={{ background:'#f8f9fa' }}>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Proyecto</th>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Concepto</th>
-                    <th style={{ padding:'8px 10px', textAlign:'left' as const, color:'#6c757d', fontWeight:'600' }}>Cat.</th>
-                    <th style={{ padding:'8px 10px', textAlign:'right' as const, color:'#6c757d', fontWeight:'600' }}>Monto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {costosFiltrados.map(c => {
-                    const p = proyectos.find(x => x.id === c.proyecto_id)
-                    return (
-                      <tr key={c.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
-                        <td style={{ padding:'7px 10px', color:'#003366', fontWeight:'500', fontSize:'11px' }}>{p?.nombre}</td>
-                        <td style={{ padding:'7px 10px', color:'#374151', fontSize:'11px' }}>{c.descripcion}</td>
-                        <td style={{ padding:'7px 10px', color:'#6c757d', fontSize:'11px' }}>{c.categoria}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'700', color:'#842029', fontSize:'11px' }}>{fmt(c.monto, c.moneda)}</td>
-                      </tr>
-                    )
-                  })}
-                  <tr style={{ borderTop:'2px solid #d9534f', background:'#fff5f5' }}>
-                    <td colSpan={3} style={{ padding:'7px 10px', fontWeight:'700', color:'#842029', fontSize:'12px' }}>Total</td>
-                    <td style={{ padding:'7px 10px', textAlign:'right' as const, fontWeight:'800', color:'#842029', fontSize:'13px' }}>{fmt(totalEgresos)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <TablaColapsable
+          titulo="💜 Comisiones del período"
+          color="#6f42c1"
+          total={fmt(comisionesPeriodo.reduce((a,c)=>a+c.monto,0))}
+          headers={['Proyecto','Colaborador','RUT','%','Monto','Estado']}
+          rows={filasComisiones}
+          emptyMsg="Sin comisiones en el período"
+        />
+        <TablaColapsable
+          titulo="💰 Ingresos del período"
+          color="#198754"
+          total={fmt(totalIngresos)}
+          headers={['Proyecto','Hito','Fecha','Monto']}
+          rows={filasIngresos}
+          emptyMsg="Sin ingresos en el período"
+        />
+        <TablaColapsable
+          titulo="📤 Egresos del período"
+          color="#842029"
+          total={fmt(totalEgresos)}
+          headers={['Proyecto','Concepto','Cat.','Monto']}
+          rows={filasEgresos}
+          emptyMsg="Sin egresos en el período"
+        />
       </div>
     </div>
   )
