@@ -142,6 +142,36 @@ export default function Dashboard() {
     if (data) setProyectos(data)
   }
 
+  async function eliminarProyecto(p: Proyecto) {
+    const ok = await confirmar({
+      titulo: 'Eliminar proyecto',
+      mensaje: `¿Estás seguro de eliminar "${p.nombre}"? Esta acción no se puede deshacer.`,
+      labelConfirmar: 'Sí, eliminar',
+      labelCancelar: 'Cancelar',
+    })
+    if (!ok) return
+
+    // 1. Obtener IDs de hitos y costos del proyecto
+    const { data: hitosData } = await supabase.from('hitos').select('id').eq('proyecto_id', p.id)
+    const { data: costosData } = await supabase.from('costos').select('id').eq('proyecto_id', p.id)
+
+    const hitosIds = (hitosData || []).map((h: any) => h.id)
+    const costosIds = (costosData || []).map((c: any) => c.id)
+
+    // 2. Borrar abonos relacionados
+    if (hitosIds.length > 0) await supabase.from('abonos').delete().in('hito_id', hitosIds)
+    if (costosIds.length > 0) await supabase.from('abonos').delete().in('costo_id', costosIds)
+
+    // 3. Borrar hitos y costos
+    await supabase.from('hitos').delete().eq('proyecto_id', p.id)
+    await supabase.from('costos').delete().eq('proyecto_id', p.id)
+
+    // 4. Borrar el proyecto
+    await supabase.from('proyectos').delete().eq('id', p.id)
+
+    cargar()
+  }
+
   async function exportarExcelMultiple() {
     try {
       const { data: hitos } = await supabase.from('hitos').select('*, abonos(*)').in('proyecto_id', excelSeleccionados)
@@ -369,19 +399,7 @@ export default function Dashboard() {
 
                           {ADMINS.includes(user?.email || '') && (
                             <button
-                              onClick={async e => {
-                                e.stopPropagation()
-                                const ok = await confirmar({
-                                  titulo: 'Eliminar proyecto',
-                                  mensaje: `¿Estás seguro de eliminar "${p.nombre}"? Esta acción no se puede deshacer.`,
-                                  labelConfirmar: 'Sí, eliminar',
-                                  labelCancelar: 'Cancelar',
-                                })
-                                if (ok) {
-                                  await supabase.from('proyectos').delete().eq('id', p.id)
-                                  cargar()
-                                }
-                              }}
+                              onClick={e => { e.stopPropagation(); eliminarProyecto(p) }}
                               style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'none', background:'#dc3545', color:'white', cursor:'pointer', fontWeight:'600' }}>
                               🗑 Eliminar
                             </button>
