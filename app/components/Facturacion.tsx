@@ -32,7 +32,6 @@ type Solicitud = {
 const fmt = (n: number, m = 'CLP') =>
   m === 'USD' ? 'USD ' + (n||0).toLocaleString('es-CL') : '$' + (n||0).toLocaleString('es-CL')
 
-// ── Modal de solicitud ────────────────────────────────────
 function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
   { hito: HitoPendiente, usuarioEmail: string, onClose: () => void, onSave: () => void }) {
 
@@ -56,7 +55,6 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
     setError('')
 
     try {
-      // 1. Guardar solicitud en DB
       const { error: dbError } = await supabase.from('facturacion').insert({
         hito_id:          hito.id,
         tipo_doc:         form.tipo_doc,
@@ -67,10 +65,8 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
       })
       if (dbError) throw new Error(dbError.message)
 
-      // 2. Actualizar estado del hito
       await supabase.from('hitos').update({ estado_factura: 'En Proceso Facturación' }).eq('id', hito.id)
 
-      // 3. Enviar email via API Route
       const res = await fetch('/api/enviar-factura', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,7 +88,6 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al enviar email')
 
-      // 4. Log
       await supabase.rpc('registrar_log', {
         p_usuario: usuarioEmail,
         p_accion: 'Solicitud Facturación',
@@ -110,7 +105,6 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', overflowY:'auto' }}>
       <div style={{ background:'white', borderRadius:'14px', width:'100%', maxWidth:'560px', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.25)', margin:'auto' }}>
-
         <div style={{ background:'#003366', padding:'16px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
             <h5 style={{ margin:0, color:'white', fontSize:'16px', fontWeight:'700' }}>📄 Solicitar Emisión de Documento</h5>
@@ -126,7 +120,6 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
             </div>
           )}
 
-          {/* Info del hito */}
           <div style={{ background:'#e3f2fd', borderRadius:'8px', padding:'12px 14px', marginBottom:'18px' }}>
             <div style={{ fontSize:'12px', fontWeight:'700', color:'#0d47a1', marginBottom:'6px', textTransform:'uppercase' as const, letterSpacing:'0.5px' }}>Hito a facturar</div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -136,70 +129,56 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
           </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
-
-            {/* Tipo documento */}
             <div style={{ gridColumn:'span 2' }}>
               <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'4px' }}>Tipo de Documento *</label>
               <div style={{ display:'flex', gap:'10px' }}>
                 {['Factura Electrónica', 'Boleta Electrónica'].map(tipo => (
                   <label key={tipo} style={{ flex:1, display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px', border:`2px solid ${form.tipo_doc===tipo?'#003366':'#e9ecef'}`, borderRadius:'8px', cursor:'pointer', background: form.tipo_doc===tipo?'#e3f2fd':'white', transition:'all 0.2s' }}>
                     <input type="radio" name="tipo_doc" value={tipo} checked={form.tipo_doc===tipo} onChange={e=>set('tipo_doc',e.target.value)} style={{ accentColor:'#003366' }} />
-                    <div>
-                      <div style={{ fontSize:'13px', fontWeight:'600', color: form.tipo_doc===tipo?'#003366':'#374151' }}>{tipo}</div>
-                    </div>
+                    <div style={{ fontSize:'13px', fontWeight:'600', color: form.tipo_doc===tipo?'#003366':'#374151' }}>{tipo}</div>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Monto */}
             <div>
               <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'4px' }}>Monto Bruto/Neto *</label>
               <input type="number" value={form.monto} onChange={e=>set('monto',e.target.value)}
                 style={{ width:'100%', padding:'9px 12px', fontSize:'14px', border:'1px solid #d1d5db', borderRadius:'8px', outline:'none', boxSizing:'border-box' as const, fontWeight:'600' }} />
             </div>
 
-            {/* Glosa */}
             <div>
               <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'4px' }}>Glosa / Descripción *</label>
               <input value={form.glosa} onChange={e=>set('glosa',e.target.value)} placeholder="Descripción del servicio..."
                 style={{ width:'100%', padding:'9px 12px', fontSize:'14px', border:'1px solid #d1d5db', borderRadius:'8px', outline:'none', boxSizing:'border-box' as const }} />
             </div>
 
-            {/* Separador datos cliente */}
             <div style={{ gridColumn:'span 2', borderTop:'1px solid #e9ecef', paddingTop:'14px', marginTop:'2px' }}>
               <div style={{ fontSize:'12px', fontWeight:'700', color:'#6c757d', textTransform:'uppercase' as const, letterSpacing:'0.5px', marginBottom:'12px' }}>Datos del Cliente</div>
             </div>
 
-            {/* Cliente */}
             <div>
               <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'4px' }}>Nombre / Razón Social</label>
               <input value={form.cliente} onChange={e=>set('cliente',e.target.value)}
                 style={{ width:'100%', padding:'9px 12px', fontSize:'14px', border:'1px solid #d1d5db', borderRadius:'8px', outline:'none', boxSizing:'border-box' as const }} />
             </div>
 
-            {/* RUT */}
             <div>
               <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'4px' }}>RUT</label>
               <input value={form.rut} onChange={e=>set('rut',e.target.value)} placeholder="12.345.678-9"
                 style={{ width:'100%', padding:'9px 12px', fontSize:'14px', border:'1px solid #d1d5db', borderRadius:'8px', outline:'none', boxSizing:'border-box' as const }} />
             </div>
 
-            {/* Email cliente */}
             <div style={{ gridColumn:'span 2' }}>
               <label style={{ display:'block', fontSize:'12px', fontWeight:'600', color:'#374151', marginBottom:'4px' }}>Email del Cliente</label>
               <input type="email" value={form.email_cliente} onChange={e=>set('email_cliente',e.target.value)} placeholder="cliente@email.com"
                 style={{ width:'100%', padding:'9px 12px', fontSize:'14px', border:'1px solid #d1d5db', borderRadius:'8px', outline:'none', boxSizing:'border-box' as const }} />
             </div>
-
           </div>
 
-          {/* Aviso de envío */}
           <div style={{ background:'#f8f9fa', borderRadius:'8px', padding:'10px 14px', marginTop:'16px', fontSize:'12px', color:'#6c757d', display:'flex', gap:'8px', alignItems:'flex-start' }}>
             <span style={{ fontSize:'16px' }}>📧</span>
-            <div>
-              Se enviará una solicitud a <strong>fvaldebenito@aacadvisory.cl</strong> con copia a <strong>{usuarioEmail}</strong>
-            </div>
+            <div>Se enviará una solicitud a <strong>fvaldebenito@aacadvisory.cl</strong> con copia a <strong>{usuarioEmail}</strong></div>
           </div>
 
           <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'20px' }}>
@@ -218,7 +197,6 @@ function ModalSolicitud({ hito, usuarioEmail, onClose, onSave }:
   )
 }
 
-// ── Módulo principal ──────────────────────────────────────
 export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) {
   const [hitosPendientes, setHitosPendientes] = useState<HitoPendiente[]>([])
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
@@ -231,7 +209,6 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
   async function cargar() {
     setLoading(true)
 
-    // Hitos pendientes de facturar (Pendiente o En Proceso)
     const { data: hitos } = await supabase
       .from('hitos')
       .select('*, proyectos(nombre, cliente, rut, email, moneda)')
@@ -253,7 +230,6 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
       })))
     }
 
-    // Historial de solicitudes
     const { data: solic } = await supabase
       .from('facturacion')
       .select('*, hitos(descripcion, proyectos(nombre))')
@@ -271,14 +247,27 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
     setLoading(false)
   }
 
-  const pendientes  = hitosPendientes.filter(h => h.estado_factura === 'Pendiente')
-  const enProceso   = hitosPendientes.filter(h => h.estado_factura === 'En Proceso Facturación')
+  const pendientes = hitosPendientes.filter(h => h.estado_factura === 'Pendiente')
+  const enProceso  = hitosPendientes.filter(h => h.estado_factura === 'En Proceso Facturación')
+
+  // Agrupar por proyecto
+  const pendientesPorProyecto = pendientes.reduce((acc, h) => {
+    if (!acc[h.proyecto_id]) acc[h.proyecto_id] = { nombre: h.nombre_proyecto, cliente: h.cliente, rut: h.rut, moneda: h.moneda, hitos: [] }
+    acc[h.proyecto_id].hitos.push(h)
+    return acc
+  }, {} as Record<string, { nombre: string, cliente: string, rut: string, moneda: string, hitos: HitoPendiente[] }>)
+
+  const enProcesoPorProyecto = enProceso.reduce((acc, h) => {
+    if (!acc[h.proyecto_id]) acc[h.proyecto_id] = { nombre: h.nombre_proyecto, cliente: h.cliente, rut: h.rut, moneda: h.moneda, hitos: [] }
+    acc[h.proyecto_id].hitos.push(h)
+    return acc
+  }, {} as Record<string, { nombre: string, cliente: string, rut: string, moneda: string, hitos: HitoPendiente[] }>)
 
   const estadoBadge: any = {
-    'Solicitado':  { bg:'#fff3cd', c:'#856404' },
-    'En Proceso':  { bg:'#cff4fc', c:'#055160' },
-    'Emitido':     { bg:'#d1e7dd', c:'#0a3622' },
-    'Anulado':     { bg:'#f8d7da', c:'#58151c' },
+    'Solicitado': { bg:'#fff3cd', c:'#856404' },
+    'En Proceso': { bg:'#cff4fc', c:'#055160' },
+    'Emitido':    { bg:'#d1e7dd', c:'#0a3622' },
+    'Anulado':    { bg:'#f8d7da', c:'#58151c' },
   }
 
   return (
@@ -303,32 +292,44 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
         <div style={{ textAlign:'center', padding:'60px', color:'#6c757d' }}>Cargando...</div>
       ) : tab === 'pendientes' ? (
         <>
-          {/* En proceso */}
-          {enProceso.length > 0 && (
+          {/* En proceso agrupado */}
+          {Object.keys(enProcesoPorProyecto).length > 0 && (
             <div style={{ marginBottom:'20px' }}>
               <div style={{ fontSize:'13px', fontWeight:'700', color:'#055160', marginBottom:'10px', display:'flex', alignItems:'center', gap:'8px' }}>
                 <span style={{ background:'#cff4fc', color:'#055160', padding:'2px 8px', borderRadius:'6px', fontSize:'11px' }}>En proceso</span>
                 {enProceso.length} hito{enProceso.length!==1?'s':''} con solicitud enviada
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                {enProceso.map(h => (
-                  <div key={h.id} style={{ background:'white', borderRadius:'10px', border:'1px solid #cff4fc', padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', opacity:0.8 }}>
-                    <div>
-                      <div style={{ fontSize:'13px', fontWeight:'600', color:'#055160' }}>{h.descripcion}</div>
-                      <div style={{ fontSize:'12px', color:'#6c757d', marginTop:'2px' }}>{h.nombre_proyecto} · {h.cliente}</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                {Object.entries(enProcesoPorProyecto).map(([pid, grupo]) => (
+                  <div key={pid} style={{ background:'white', borderRadius:'12px', border:'1px solid #cff4fc', overflow:'hidden', opacity:0.85 }}>
+                    {/* Header tarjeta proyecto */}
+                    <div style={{ background:'#e8f9fc', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #cff4fc' }}>
+                      <div>
+                        <div style={{ fontSize:'13px', fontWeight:'700', color:'#055160' }}>📁 {grupo.nombre}</div>
+                        <div style={{ fontSize:'11px', color:'#6c757d', marginTop:'1px' }}>👤 {grupo.cliente}{grupo.rut ? ` · ${grupo.rut}` : ''}</div>
+                      </div>
+                      <div style={{ fontSize:'12px', fontWeight:'700', color:'#055160' }}>
+                        {fmt(grupo.hitos.reduce((a, h) => a + h.monto, 0), grupo.moneda)}
+                      </div>
                     </div>
-                    <div style={{ textAlign:'right' as const }}>
-                      <div style={{ fontSize:'14px', fontWeight:'700', color:'#055160' }}>{fmt(h.monto, h.moneda)}</div>
-                      <div style={{ fontSize:'11px', color:'#aaa' }}>Solicitud enviada</div>
-                    </div>
+                    {/* Hitos del proyecto */}
+                    {grupo.hitos.map((h, idx) => (
+                      <div key={h.id} style={{ padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: idx < grupo.hitos.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                        <div style={{ fontSize:'13px', color:'#055160', fontWeight:'500' }}>{h.descripcion}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                          <div style={{ fontSize:'13px', fontWeight:'700', color:'#055160' }}>{fmt(h.monto, h.moneda)}</div>
+                          <span style={{ fontSize:'11px', color:'#aaa' }}>Solicitud enviada</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Pendientes */}
-          {pendientes.length === 0 ? (
+          {/* Pendientes agrupados por proyecto */}
+          {Object.keys(pendientesPorProyecto).length === 0 ? (
             <div style={{ textAlign:'center', padding:'60px', background:'white', borderRadius:'12px', border:'1px solid #eee', color:'#6c757d' }}>
               <div style={{ fontSize:'52px', marginBottom:'14px' }}>✅</div>
               <h3 style={{ color:'#003366', marginBottom:'6px' }}>Todo al día</h3>
@@ -337,30 +338,40 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
           ) : (
             <>
               <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366', marginBottom:'10px' }}>
-                {pendientes.length} hito{pendientes.length!==1?'s':''} pendiente{pendientes.length!==1?'s':''} de facturar
+                {pendientes.length} hito{pendientes.length!==1?'s':''} pendiente{pendientes.length!==1?'s':''} de facturar · {Object.keys(pendientesPorProyecto).length} proyecto{Object.keys(pendientesPorProyecto).length!==1?'s':''}
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                {pendientes.map(h => (
-                  <div key={h.id} style={{ background:'white', borderRadius:'12px', border:'1px solid #e9ecef', overflow:'hidden', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' }}>
-                    <div style={{ padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px' }}>
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:'flex', gap:'8px', alignItems:'center', marginBottom:'4px' }}>
-                          <div style={{ fontSize:'14px', fontWeight:'700', color:'#003366' }}>{h.descripcion}</div>
-                        </div>
-                        <div style={{ fontSize:'12px', color:'#6c757d' }}>
-                          📁 {h.nombre_proyecto} &nbsp;·&nbsp; 👤 {h.cliente}
-                          {h.rut && <> &nbsp;·&nbsp; RUT: {h.rut}</>}
-                        </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                {Object.entries(pendientesPorProyecto).map(([pid, grupo]) => (
+                  <div key={pid} style={{ background:'white', borderRadius:'12px', border:'1px solid #e9ecef', overflow:'hidden', boxShadow:'0 2px 6px rgba(0,0,0,0.04)' }}>
+                    {/* Header tarjeta proyecto */}
+                    <div style={{ background:'#f0f4ff', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #e2e8f8' }}>
+                      <div>
+                        <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366' }}>📁 {grupo.nombre}</div>
+                        <div style={{ fontSize:'11px', color:'#6c757d', marginTop:'1px' }}>👤 {grupo.cliente}{grupo.rut ? ` · ${grupo.rut}` : ''}</div>
                       </div>
-                      <div style={{ textAlign:'right' as const, flexShrink:0 }}>
-                        <div style={{ fontSize:'16px', fontWeight:'800', color:'#003366' }}>{fmt(h.monto, h.moneda)}</div>
-                        <div style={{ fontSize:'11px', color:'#aaa', marginBottom:'8px' }}>{h.moneda}</div>
-                        <button onClick={()=>setHitoSeleccionado(h)}
-                          style={{ padding:'7px 16px', background:'#003366', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'700', whiteSpace:'nowrap' as const }}>
-                          📄 Solicitar
-                        </button>
+                      <div style={{ textAlign:'right' as const }}>
+                        <div style={{ fontSize:'13px', fontWeight:'700', color:'#003366' }}>{fmt(grupo.hitos.reduce((a, h) => a + h.monto, 0), grupo.moneda)}</div>
+                        <div style={{ fontSize:'11px', color:'#aaa' }}>{grupo.hitos.length} hito{grupo.hitos.length!==1?'s':''}</div>
                       </div>
                     </div>
+                    {/* Hitos del proyecto */}
+                    {grupo.hitos.map((h, idx) => (
+                      <div key={h.id} style={{ padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: idx < grupo.hitos.length - 1 ? '1px solid #f0f0f0' : 'none' }}
+                        onMouseEnter={e=>(e.currentTarget.style.background='#fafafa')}
+                        onMouseLeave={e=>(e.currentTarget.style.background='white')}>
+                        <div style={{ fontSize:'13px', color:'#374151', fontWeight:'500' }}>{h.descripcion}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:'12px', flexShrink:0 }}>
+                          <div style={{ textAlign:'right' as const }}>
+                            <div style={{ fontSize:'14px', fontWeight:'800', color:'#003366' }}>{fmt(h.monto, h.moneda)}</div>
+                            <div style={{ fontSize:'11px', color:'#aaa' }}>{h.moneda}</div>
+                          </div>
+                          <button onClick={()=>setHitoSeleccionado(h)}
+                            style={{ padding:'7px 14px', background:'#003366', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'12px', fontWeight:'700', whiteSpace:'nowrap' as const }}>
+                            📄 Solicitar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
