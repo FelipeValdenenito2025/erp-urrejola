@@ -365,9 +365,21 @@ export default function Dashboard() {
 
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' as const, alignItems: 'center' }}>
                           <button onClick={e => { e.stopPropagation(); setProyectoEditar(p) }}
-                            style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600' }}>
-                            ✏ Editar
-                          </button>
+  style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600' }}>
+  ✏ Editar
+</button>
+{ADMINS.includes(user?.email || '') && (
+  <button
+    onClick={e => {
+      e.stopPropagation()
+      if (confirm(`¿Eliminar el proyecto "${p.nombre}"? Esta acción no se puede deshacer.`)) {
+        supabase.from('proyectos').delete().eq('id', p.id).then(() => cargar())
+      }
+    }}
+    style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'none', background:'#dc3545', color:'white', cursor:'pointer', fontWeight:'600' }}>
+    🗑 Eliminar
+  </button>
+)}
                           {ADMINS.includes(user?.email || '') && (
                             <button
                               onClick={e => { e.stopPropagation(); setProyectoEnviarFacturas(p) }}
