@@ -347,7 +347,8 @@ function ModalComision({ presupuesto, moneda, colaboradores, onClose, onConfirm 
   const [colaboradorId, setColaboradorId] = useState('')
   const [porcentaje, setPorcentaje] = useState('3')
   const pct = parseFloat(porcentaje) || 0
-  const comision = Math.round(presupuesto * pct / 100)
+  const neto = Math.round(presupuesto / 1.19)
+  const comision = Math.round(neto * pct / 100)
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
@@ -360,9 +361,13 @@ function ModalComision({ presupuesto, moneda, colaboradores, onClose, onConfirm 
 
           {/* Presupuesto y cálculo */}
           <div style={{ background:'#f3f0ff', borderRadius:'8px', padding:'14px', marginBottom:'16px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', marginBottom:'6px' }}>
+              <span style={{ color:'#6c757d' }}>Presupuesto total (bruto c/IVA)</span>
+              <span style={{ fontWeight:'600', color:'#6c757d' }}>{fmt2(presupuesto)}</span>
+            </div>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:'13px', marginBottom:'10px' }}>
-              <span style={{ color:'#6c757d' }}>Presupuesto total</span>
-              <span style={{ fontWeight:'700', color:'#374151' }}>{fmt2(presupuesto)}</span>
+              <span style={{ color:'#374151', fontWeight:'600' }}>Monto neto (sin IVA 19%)</span>
+              <span style={{ fontWeight:'700', color:'#374151' }}>{fmt2(neto)}</span>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
               <label style={{ fontSize:'12px', fontWeight:'600', color:'#374151', whiteSpace:'nowrap' as const }}>Porcentaje (%)</label>
@@ -375,7 +380,7 @@ function ModalComision({ presupuesto, moneda, colaboradores, onClose, onConfirm 
               <span style={{ fontSize:'13px', color:'#6c757d' }}>sobre el presupuesto</span>
             </div>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:'16px', borderTop:'1px solid #e0d7ff', paddingTop:'10px' }}>
-              <span style={{ fontWeight:'700', color:'#6f42c1' }}>Monto comisión ({pct}%)</span>
+              <span style={{ fontWeight:'700', color:'#6f42c1' }}>Comisión ({pct}% sobre neto)</span>
               <span style={{ fontWeight:'800', color:'#6f42c1' }}>{fmt2(comision)}</span>
             </div>
           </div>
@@ -918,18 +923,17 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
           onConfirm={(colabId, colabNombre, pct, monto) => { registrarComision(colabId, colabNombre, pct, monto); setShowComision(false) }}
         />
       )}
-{showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
+      {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
-      {showEnviarFacturas && proyectoLocal && (
-        <ModalEnviarFacturas
-          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
-          usuarioEmail={usuarioEmail}
-          onClose={() => setShowEnviarFacturas(false)}
-        />
-      )}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }
-
