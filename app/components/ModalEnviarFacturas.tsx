@@ -11,6 +11,7 @@ type Hito = {
   monto: number
   estado_factura: string
   link_factura: string | null
+  factura_notificada_at?: string | null
 }
 
 type Proyecto = {
@@ -69,7 +70,7 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
     try {
       const hitosEnviar = hitosDisponibles
         .filter(h => seleccionados.includes(h.id))
-        .map(h => ({ descripcion: h.descripcion, monto: h.monto, link_factura: h.link_factura }))
+        .map(h => ({ id: h.id, descripcion: h.descripcion, monto: h.monto, link_factura: h.link_factura }))
 
       const res = await fetch('/api/enviar-facturas-cliente', {
         method: 'POST',
@@ -84,6 +85,12 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al enviar')
       setEnviado(true)
+      // Recargar hitos para mostrar marca de notificación
+      if (!hitosProp || hitosProp.length === 0) {
+        supabase.from('hitos').select('*').eq('proyecto_id', proyecto.id).then(({ data }) => {
+          if (data) setHitosData(data)
+        })
+      }
       setTimeout(() => onClose(), 3000)
     } catch (e: any) {
       setError(e.message)
@@ -144,6 +151,11 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
                               📎 Ver link
                             </a>
                           </div>
+                          {h.factura_notificada_at && (
+                            <div style={{ fontSize:'10px', color:'#198754', marginTop:'3px', fontWeight:'600' }}>
+                              ✅ Notificada el {new Date(h.factura_notificada_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                            </div>
+                          )}
                         </div>
                         <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'8px', background:'#d1e7dd', color:'#0a3622', fontWeight:'600', flexShrink:0 }}>
                           {h.estado_factura}

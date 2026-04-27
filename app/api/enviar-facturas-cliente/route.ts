@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         <td style="padding:10px 14px;border-bottom:1px solid #eee;text-align:center">
           <a href="${h.link_factura}" target="_blank"
             style="background:#003366;color:white;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600">
-            📄 Ver Documento
+            📄 Ver Factura
           </a>
         </td>
       </tr>
@@ -90,10 +90,24 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from:    'AA&C Auditores <erp@aacadvisory.cl>',
       to:      emailDestino,
-      cc:      ['elias@solarfotovoltaica.cl', 'fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
+      cc:      ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
       subject: `📄 Documentos Tributarios — ${proyecto.nombre}`,
       html,
     })
+
+    // Marcar hitos como notificados
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const hitoIds = hitos.map((h: any) => h.id).filter(Boolean)
+    if (hitoIds.length > 0) {
+      await supabaseAdmin
+        .from('hitos')
+        .update({ factura_notificada_at: new Date().toISOString() })
+        .in('id', hitoIds)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
