@@ -325,7 +325,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {proyectosFiltrados.map(p => {
+                {(verMasProyectos ? proyectosFiltrados : proyectosFiltrados.slice(0, 10)).map(p => {
                   const salud = getSalud(p)
                   const progreso = p.monto_total > 0 ? Math.min(((p.total_cobrado || 0) / p.monto_total) * 100, 100) : 0
                   const utilReal       = (p.total_cobrado || 0) - (p.total_costos || 0)
@@ -392,6 +392,14 @@ export default function Dashboard() {
                     </div>
                   )
                 })}
+                {proyectosFiltrados.length > 10 && (
+                  <div style={{ textAlign:'center', padding:'16px', background:'white', borderRadius:'12px', border:'1px solid #eee', marginTop:'8px' }}>
+                    <button onClick={() => setVerMasProyectos(!verMasProyectos)}
+                      style={{ background:'none', border:'none', color:'#003366', cursor:'pointer', fontSize:'13px', fontWeight:'600', textDecoration:'underline' }}>
+                      {verMasProyectos ? '▲ Mostrar menos' : `▼ Ver más (${proyectosFiltrados.length - 10} proyectos más)`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
