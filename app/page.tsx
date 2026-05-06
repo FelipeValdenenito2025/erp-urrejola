@@ -10,7 +10,7 @@ import Facturacion from './components/Facturacion'
 import GestionUsuarios from './components/GestionUsuarios'
 import ModalEnviarFacturas from './components/ModalEnviarFacturas'
 import BotonConsulta from './components/BotonConsulta'
-import DialogProvider, { confirmar } from './components/Dialog'
+import DialogProvider from './components/Dialog'
 
 const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 import * as XLSX from 'xlsx'
@@ -122,6 +122,7 @@ export default function Dashboard() {
   const [proyectoEditar, setProyectoEditar] = useState<any>(null)
   const [showExcelModal, setShowExcelModal] = useState(false)
   const [proyectoEnviarFacturas, setProyectoEnviarFacturas] = useState<any>(null)
+  const [verMasProyectos, setVerMasProyectos] = useState(false)
   const [excelSeleccionados, setExcelSeleccionados] = useState<string[]>([])
   const [filtro, setFiltro] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
@@ -142,36 +143,6 @@ export default function Dashboard() {
     if (data) setProyectos(data)
   }
 
-  async function eliminarProyecto(p: Proyecto) {
-    const ok = await confirmar({
-      titulo: 'Eliminar proyecto',
-      mensaje: `¿Estás seguro de eliminar "${p.nombre}"? Esta acción no se puede deshacer.`,
-      labelConfirmar: 'Sí, eliminar',
-      labelCancelar: 'Cancelar',
-    })
-    if (!ok) return
-
-    // 1. Obtener IDs de hitos y costos del proyecto
-    const { data: hitosData } = await supabase.from('hitos').select('id').eq('proyecto_id', p.id)
-    const { data: costosData } = await supabase.from('costos').select('id').eq('proyecto_id', p.id)
-
-    const hitosIds = (hitosData || []).map((h: any) => h.id)
-    const costosIds = (costosData || []).map((c: any) => c.id)
-
-    // 2. Borrar abonos relacionados
-    if (hitosIds.length > 0) await supabase.from('abonos').delete().in('hito_id', hitosIds)
-    if (costosIds.length > 0) await supabase.from('abonos').delete().in('costo_id', costosIds)
-
-    // 3. Borrar hitos y costos
-    await supabase.from('hitos').delete().eq('proyecto_id', p.id)
-    await supabase.from('costos').delete().eq('proyecto_id', p.id)
-
-    // 4. Borrar el proyecto
-    await supabase.from('proyectos').delete().eq('id', p.id)
-
-    cargar()
-  }
-
   async function exportarExcelMultiple() {
     try {
       const { data: hitos } = await supabase.from('hitos').select('*, abonos(*)').in('proyecto_id', excelSeleccionados)
@@ -179,6 +150,7 @@ export default function Dashboard() {
       const wb = XLSX.utils.book_new()
       const proySelec = proyectos.filter(p => excelSeleccionados.includes(p.id))
 
+      // Hoja resumen global
       const resData = [
         ['REPORTE MULTI-PROYECTO - ERP URREJOLA'],
         [`Generado: ${new Date().toLocaleDateString('es-CL')}`],
@@ -197,6 +169,7 @@ export default function Dashboard() {
       ]
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resData), 'Resumen')
 
+      // Una hoja por proyecto
       proySelec.forEach(p => {
         const hP = (hitos||[]).filter((h:any) => h.proyecto_id === p.id)
         const cP = (costos||[]).filter((c:any) => c.proyecto_id === p.id)
@@ -232,6 +205,7 @@ export default function Dashboard() {
     window.location.href = '/login'
   }
 
+  // Reset ver más al cambiar filtros
   const proyectosFiltrados = proyectos.filter(p => {
     const matchFiltro = filtro === 'todos' || p.estado.toLowerCase() === filtro
     const matchBusqueda = !busqueda || p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || p.cliente.toLowerCase().includes(busqueda.toLowerCase())
@@ -324,7 +298,7 @@ export default function Dashboard() {
           <>
             {/* Filtros */}
             <div style={{ background: 'white', borderRadius: '12px', padding: '12px 14px', marginBottom: '14px', border: '1px solid #eee', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' as const }}>
-              <input placeholder="🔍 Buscar proyecto o cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)}
+              <input placeholder="🔍 Buscar proyecto o cliente..." value={busqueda} onChange={e => { setBusqueda(e.target.value); setVerMasProyectos(false) }}
                 style={{ flex: 1, minWidth: '180px', padding: '7px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', outline: 'none', color: '#111' }} />
               <div style={{ display: 'flex', gap: '5px' }}>
                 {['todos', 'abierto', 'cerrado'].map(f => (
@@ -396,15 +370,6 @@ export default function Dashboard() {
                             style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600' }}>
                             ✏ Editar
                           </button>
-
-                          {ADMINS.includes(user?.email || '') && (
-                            <button
-                              onClick={e => { e.stopPropagation(); eliminarProyecto(p) }}
-                              style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'none', background:'#dc3545', color:'white', cursor:'pointer', fontWeight:'600' }}>
-                              🗑 Eliminar
-                            </button>
-                          )}
-
                           {ADMINS.includes(user?.email || '') && (
                             <button
                               onClick={e => { e.stopPropagation(); setProyectoEnviarFacturas(p) }}
@@ -416,7 +381,7 @@ export default function Dashboard() {
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: '#e3f2fd', color: '#0d47a1', fontWeight: '500' }}>💰 {fmt(p.total_cobrado, p.moneda)}</span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: '#fdecea', color: '#842029', fontWeight: '500' }}>📤 {fmt(p.total_costos, p.moneda)}</span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: saludBg[salud], color: saludText[salud], fontWeight: '600' }}>{saludLabel[salud]}</span>
-                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: utilReal >= 0 ? '#e8f5e9' : '#fdecea', color: utilReal >= 0 ? '#1b5e20' : '#842029', fontWeight: '600', marginLeft: 'auto' }}>
+                          <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: utilP >= 0 ? '#e8f5e9' : '#fdecea', color: utilP >= 0 ? '#1b5e20' : '#842029', fontWeight: '600', marginLeft: 'auto' }}>
                             Real: {fmt(utilReal, p.moneda)}
                           </span>
                           <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '5px', background: utilProyectada >= 0 ? '#e8f5e9' : '#fdecea', color: utilProyectada >= 0 ? '#1b5e20' : '#842029', fontWeight: '600' }}>
@@ -449,7 +414,7 @@ export default function Dashboard() {
 
       {/* Modales */}
       {showModal && <ModalNuevoProyecto onClose={() => setShowModal(false)} onSave={cargar} />}
-
+      {/* CSS Responsive */}
       <style>{`
         @media (max-width: 768px) {
           nav { padding: 0 12px !important; height: auto !important; flex-wrap: wrap; gap: 8px; padding-top: 10px !important; padding-bottom: 10px !important; }
@@ -506,7 +471,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
       {proyectoEditar && (
         <ModalEditarProyecto
           proyecto={proyectoEditar}
