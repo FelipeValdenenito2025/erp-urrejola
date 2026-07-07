@@ -141,8 +141,7 @@ async function enviarAlerta() {
 
     await resend.emails.send({
       from:    'ERP Urrejola <erp@aacadvisory.cl>',
-      to:      'elias@solarfotovoltaica.cl',
-      cc:      ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl'],
+      to:      'fvaldebenito@aacadvisory.cl'
       subject: `⚠️ ${proyectosAlerta.length} proyecto${proyectosAlerta.length !== 1 ? 's' : ''} cobrado${proyectosAlerta.length !== 1 ? 's' : ''} sin facturar — ERP Urrejola`,
       html,
     })
