@@ -225,9 +225,29 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
   const [loading, setLoading] = useState(true)
   const [hitoSeleccionado, setHitoSeleccionado] = useState<HitoPendiente | null>(null)
   const [verMasHistorial, setVerMasHistorial] = useState(false)
+  const [enviandoAlerta, setEnviandoAlerta] = useState(false)
+  const [alertaMsg, setAlertaMsg] = useState('')
   const [tab, setTab] = useState<'pendientes'|'historial'>('pendientes')
 
   useEffect(() => { cargar() }, [])
+
+  async function enviarAlertaManual() {
+    setEnviandoAlerta(true)
+    setAlertaMsg('')
+    try {
+      const res = await fetch('/api/alerta-facturas-pendientes', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      if (data.proyectos === 0) {
+        setAlertaMsg('✅ Sin alertas — No hay proyectos cobrados al 100% con facturas pendientes.')
+      } else {
+        setAlertaMsg(`✅ Alerta enviada — ${data.proyectos} proyecto${data.proyectos !== 1 ? 's' : ''} notificado${data.proyectos !== 1 ? 's' : ''}: ${data.nombres?.join(', ')}`)
+      }
+    } catch(e: any) {
+      setAlertaMsg('❌ Error: ' + e.message)
+    }
+    setEnviandoAlerta(false)
+  }
 
   async function cargar() {
     setLoading(true)
@@ -284,6 +304,19 @@ export default function Facturacion({ usuarioEmail }: { usuarioEmail: string }) 
 
   return (
     <div>
+      {/* Botón alerta manual */}
+      <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'12px', gap:'10px', alignItems:'center' }}>
+        {alertaMsg && (
+          <div style={{ fontSize:'12px', color: alertaMsg.startsWith('✅')?'#198754':'#842029', background: alertaMsg.startsWith('✅')?'#d1e7dd':'#fdecea', padding:'6px 12px', borderRadius:'8px', maxWidth:'500px' }}>
+            {alertaMsg}
+          </div>
+        )}
+        <button onClick={enviarAlertaManual} disabled={enviandoAlerta}
+          style={{ padding:'7px 16px', borderRadius:'8px', border:'1px solid #ffc107', background:'#fff3cd', color:'#856404', cursor: enviandoAlerta?'not-allowed':'pointer', fontSize:'13px', fontWeight:'600', whiteSpace:'nowrap' as const }}>
+          {enviandoAlerta ? '⏳ Enviando...' : '⚠️ Enviar alerta facturas pendientes'}
+        </button>
+      </div>
+
       {/* Tabs */}
       <div style={{ display:'flex', gap:'4px', marginBottom:'16px', background:'white', borderRadius:'10px', padding:'4px', border:'1px solid #eee', width:'fit-content' }}>
         {[
