@@ -680,6 +680,16 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                 <div style={{ color:'rgba(255,255,255,0.65)', fontSize:'13px' }}>
                   👤 {proyectoLocal.cliente}{proyectoLocal.rut?` · ${proyectoLocal.rut}`:''}{proyectoLocal.email?` · ${proyectoLocal.email}`:''}
                 </div>
+                <div style={{ display:'flex', gap:'14px', marginTop:'4px' }}>
+                  <span style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px' }}>
+                    📅 Creado: {new Date(proyectoLocal.created_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })}
+                  </span>
+                  {proyectoLocal.updated_at && proyectoLocal.updated_at !== proyectoLocal.created_at && (
+                    <span style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px' }}>
+                      ✏ Modificado: {new Date(proyectoLocal.updated_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })}
+                    </span>
+                  )}
+                </div>
               </div>
               <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
                 <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 10px', borderRadius:'10px', background:'rgba(255,255,255,0.2)', color:'white', textTransform:'uppercase' as const }}>{proyectoLocal.estado}</span>
@@ -926,14 +936,14 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
       {showNuevoHito && <ModalNuevoHito proyectoId={proyectoLocal.id} moneda={proyectoLocal.moneda} disponible={disponible} onClose={()=>setShowNuevoHito(false)} onSave={recargar} />}
       {showAmpliar && <ModalAmpliarPresupuesto proyecto={proyectoLocal} onClose={()=>setShowAmpliar(false)} onSave={recargar} />}
       {abonoItem && <ModalAbono tipo={abonoItem.tipo} item={abonoItem.item} moneda={proyectoLocal.moneda} onClose={()=>setAbonoItem(null)} onSave={recargar} />}
-      {showEnviarFacturas && proyectoLocal && (
-        <ModalEnviarFacturas
-          proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
-          usuarioEmail={usuarioEmail}
-          onClose={() => setShowEnviarFacturas(false)}
-        />
-      )}
     </>
+    {showEnviarFacturas && proyectoLocal && (
+      <ModalEnviarFacturas
+        proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
+        hitos={hitos}
+        usuarioEmail={usuarioEmail}
+        onClose={() => setShowEnviarFacturas(false)}
+      />
+    )}
   )
 }
