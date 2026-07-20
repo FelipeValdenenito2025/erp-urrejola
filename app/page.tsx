@@ -28,7 +28,9 @@ type Proyecto = {
   total_costos: number
   estado: string
   created_at: string
+  updated_at?: string
 }
+
 
 const fmt = (n: number, moneda = 'CLP') =>
   moneda === 'USD' ? 'USD ' + (n || 0).toLocaleString('es-CL') : '$' + (n || 0).toLocaleString('es-CL')
