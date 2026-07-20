@@ -924,7 +924,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
         </div>
       </div>
 
-      {showComision && proyectoLocal && (
+     {showComision && proyectoLocal && (
         <ModalComision
           presupuesto={(proyectoLocal.monto_base||0)+(proyectoLocal.monto_extra||0)}
           moneda={proyectoLocal.moneda}
