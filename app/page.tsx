@@ -348,6 +348,12 @@ export default function Dashboard() {
                               <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '10px', textTransform: 'uppercase' as const, background: p.estado === 'Abierto' ? '#e3f2fd' : '#e8f5e9', color: p.estado === 'Abierto' ? '#0d47a1' : '#1b5e20' }}>{p.estado}</span>
                             </div>
                             <span style={{ fontSize: '12px', color: '#6c757d' }}>👤 {p.cliente}{p.rut ? ` · ${p.rut}` : ''}</span>
+                            <div style={{ display:'flex', gap:'12px', marginTop:'3px' }}>
+                              <span style={{ fontSize:'11px', color:'#aaa' }}>📅 Creado: {new Date(p.created_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                              {p.updated_at && p.updated_at !== p.created_at && (
+                                <span style={{ fontSize:'11px', color:'#aaa' }}>✏ Modificado: {new Date(p.updated_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                              )}
+                            </div>
                           </div>
                           <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
                             <div style={{ fontSize: '15px', fontWeight: '700', color: '#003366' }}>{fmt(p.monto_total, p.moneda)}</div>
