@@ -10,7 +10,7 @@ import Facturacion from './components/Facturacion'
 import GestionUsuarios from './components/GestionUsuarios'
 import ModalEnviarFacturas from './components/ModalEnviarFacturas'
 import BotonConsulta from './components/BotonConsulta'
-import DialogProvider from './components/Dialog'
+import DialogProvider, { confirmar } from './components/Dialog'
 
 const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 import * as XLSX from 'xlsx'
@@ -143,6 +143,35 @@ export default function Dashboard() {
   async function cargar() {
     const { data } = await supabase.from('vista_proyectos_resumen').select('*').order('created_at', { ascending: false })
     if (data) setProyectos(data)
+  }
+
+  // ── Eliminar proyecto (y todo lo asociado: abonos, hitos, costos, solicitudes de facturación) ──
+  async function eliminarProyecto(p: Proyecto, e: React.MouseEvent) {
+    e.stopPropagation()
+    const ok = await confirmar({
+      titulo: 'Eliminar proyecto',
+      mensaje: `¿Eliminar "${p.nombre}" y todos sus hitos, costos y abonos asociados? Esta acción no se puede deshacer.`,
+      labelConfirmar: '✕ Eliminar proyecto',
+    })
+    if (!ok) return
+
+    const { data: hitosDelProyecto } = await supabase.from('hitos').select('id').eq('proyecto_id', p.id)
+    const { data: costosDelProyecto } = await supabase.from('costos').select('id').eq('proyecto_id', p.id)
+    const hitoIds = (hitosDelProyecto ?? []).map(h => h.id)
+    const costoIds = (costosDelProyecto ?? []).map(c => c.id)
+
+    if (hitoIds.length > 0) await supabase.from('abonos').delete().in('hito_id', hitoIds)
+    if (costoIds.length > 0) await supabase.from('abonos').delete().in('costo_id', costoIds)
+    await supabase.from('hitos').delete().eq('proyecto_id', p.id)
+    await supabase.from('costos').delete().eq('proyecto_id', p.id)
+    await supabase.from('facturacion').delete().eq('proyecto_id', p.id)
+
+    const { error } = await supabase.from('proyectos').delete().eq('id', p.id)
+    if (error) {
+      await confirmar({ titulo: 'Error', mensaje: error.message, labelConfirmar: 'Aceptar' })
+      return
+    }
+    cargar()
   }
 
   async function exportarExcelMultiple() {
@@ -377,6 +406,10 @@ export default function Dashboard() {
                           <button onClick={e => { e.stopPropagation(); setProyectoEditar(p) }}
                             style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'1px solid #003366', background:'white', color:'#003366', cursor:'pointer', fontWeight:'600' }}>
                             ✏ Editar
+                          </button>
+                          <button onClick={e => eliminarProyecto(p, e)}
+                            style={{ fontSize:'11px', padding:'2px 9px', borderRadius:'5px', border:'none', background:'#dc3545', color:'white', cursor:'pointer', fontWeight:'600' }}>
+                            🗑 Eliminar
                           </button>
                           {ADMINS.includes(user?.email || '') && (
                             <button
