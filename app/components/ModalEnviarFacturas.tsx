@@ -5,13 +5,13 @@ import { supabase } from '@/lib/supabaseClient'
 
 const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 
-type Hito = {
-  id: string
-  descripcion: string
-  monto: number
-  estado_factura: string
-  link_factura: string | null
-  factura_notificada_at?: string | null
+type DocumentoEnviar = {
+  id: string          // id de documentos_hito
+  hito_id: string
+  descripcion: string // descripción del hito al que pertenece
+  monto: number        // monto de ESTE documento (no del hito completo)
+  link: string
+  notificado_at?: string | null
 }
 
 type Proyecto = {
@@ -24,28 +24,44 @@ type Proyecto = {
 
 type Props = {
   proyecto: Proyecto
-  hitos?: Hito[]
   usuarioEmail: string
   onClose: () => void
 }
 
 const fmt = (n: number) => '$' + (n || 0).toLocaleString('es-CL')
 
-export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuarioEmail, onClose }: Props) {
-  const [hitosData, setHitosData] = useState<Hito[]>(hitosProp || [])
+export default function ModalEnviarFacturas({ proyecto, usuarioEmail, onClose }: Props) {
+  const [documentos, setDocumentos] = useState<DocumentoEnviar[]>([])
+  const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    if (!hitosProp || hitosProp.length === 0) {
-      supabase.from('hitos').select('*').eq('proyecto_id', proyecto.id).then(({ data }) => {
-        if (data) setHitosData(data)
-      })
-    }
+    cargarDocumentos()
   }, [proyecto.id])
 
-  // Solo hitos con link de factura cargado
-  const hitosDisponibles = hitosData.filter(h => h.link_factura && h.link_factura.trim() !== '')
+  async function cargarDocumentos() {
+    setCargando(true)
+    const { data } = await supabase
+      .from('documentos_hito')
+      .select('id, hito_id, monto, link, notificado_at, hitos!inner(descripcion, proyecto_id)')
+      .eq('hitos.proyecto_id', proyecto.id)
+      .order('created_at', { ascending: true })
 
-  const [seleccionados, setSeleccionados] = useState<string[]>(hitosDisponibles.map(h => h.id))
+    if (data) {
+      const mapeados: DocumentoEnviar[] = data.map((d: any) => ({
+        id: d.id,
+        hito_id: d.hito_id,
+        descripcion: d.hitos?.descripcion || '',
+        monto: d.monto,
+        link: d.link,
+        notificado_at: d.notificado_at,
+      }))
+      setDocumentos(mapeados)
+      setSeleccionados(mapeados.map(d => d.id))
+    }
+    setCargando(false)
+  }
+
+  const [seleccionados, setSeleccionados] = useState<string[]>([])
   const [emailDestino, setEmailDestino] = useState(proyecto.email || '')
   const [nombreDestino, setNombreDestino] = useState(proyecto.cliente || '')
   const [enviando, setEnviando] = useState(false)
@@ -68,35 +84,41 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
     setError('')
 
     try {
-      const hitosEnviar = hitosDisponibles
-        .filter(h => seleccionados.includes(h.id))
-        .map(h => ({ id: h.id, descripcion: h.descripcion, monto: h.monto, link_factura: h.link_factura }))
+      const documentosEnviar = documentos
+        .filter(d => seleccionados.includes(d.id))
+        .map(d => ({ id: d.hito_id, descripcion: d.descripcion, monto: d.monto, link_factura: d.link }))
 
       const res = await fetch('/api/enviar-facturas-cliente', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           proyecto: { nombre: proyecto.nombre, cliente: proyecto.cliente },
-          hitos: hitosEnviar,
+          hitos: documentosEnviar,
           emailDestino,
           nombreDestino,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al enviar')
-      setEnviado(true)
-      // Recargar hitos para mostrar marca de notificación
-      if (!hitosProp || hitosProp.length === 0) {
-        supabase.from('hitos').select('*').eq('proyecto_id', proyecto.id).then(({ data }) => {
-          if (data) setHitosData(data)
-        })
+
+      // Marcar como notificados los documentos enviados y sus hitos asociados
+      const ahora = new Date().toISOString()
+      await supabase.from('documentos_hito').update({ notificado_at: ahora }).in('id', seleccionados)
+      const hitoIdsUnicos = Array.from(new Set(documentos.filter(d => seleccionados.includes(d.id)).map(d => d.hito_id)))
+      if (hitoIdsUnicos.length > 0) {
+        await supabase.from('hitos').update({ factura_notificada_at: ahora }).in('id', hitoIdsUnicos)
       }
+
+      setEnviado(true)
+      await cargarDocumentos()
       setTimeout(() => onClose(), 3000)
     } catch (e: any) {
       setError(e.message)
     }
     setEnviando(false)
   }
+
+  const totalSeleccionado = documentos.filter(d => seleccionados.includes(d.id)).reduce((a, d) => a + d.monto, 0)
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
@@ -112,7 +134,9 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
         </div>
 
         <div style={{ padding:'20px' }}>
-          {enviado ? (
+          {cargando ? (
+            <div style={{ textAlign:'center', padding:'30px', color:'#6c757d', fontSize:'13px' }}>Cargando documentos...</div>
+          ) : enviado ? (
             <div style={{ textAlign:'center', padding:'30px 20px' }}>
               <div style={{ fontSize:'48px', marginBottom:'12px' }}>✅</div>
               <div style={{ fontSize:'15px', fontWeight:'700', color:'#003366', marginBottom:'6px' }}>¡Documentos enviados!</div>
@@ -126,10 +150,10 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
                 </div>
               )}
 
-              {hitosDisponibles.length === 0 ? (
+              {documentos.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'30px', color:'#6c757d', fontSize:'13px' }}>
                   <div style={{ fontSize:'36px', marginBottom:'12px' }}>📭</div>
-                  No hay hitos con link de factura cargado en este proyecto.
+                  No hay documentos de facturación cargados en este proyecto.
                 </div>
               ) : (
                 <>
@@ -138,27 +162,27 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
                     Seleccionar documentos a enviar
                   </div>
                   <div style={{ border:'1px solid #e9ecef', borderRadius:'8px', overflow:'hidden', marginBottom:'16px' }}>
-                    {hitosDisponibles.map((h, idx) => (
-                      <label key={h.id} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 14px', borderBottom: idx < hitosDisponibles.length-1 ? '1px solid #f0f0f0' : 'none', cursor:'pointer', background: seleccionados.includes(h.id) ? '#f0f4ff' : 'white', transition:'background 0.15s' }}>
-                        <input type="checkbox" checked={seleccionados.includes(h.id)} onChange={() => toggleSeleccion(h.id)}
+                    {documentos.map((d, idx) => (
+                      <label key={d.id} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 14px', borderBottom: idx < documentos.length-1 ? '1px solid #f0f0f0' : 'none', cursor:'pointer', background: seleccionados.includes(d.id) ? '#f0f4ff' : 'white', transition:'background 0.15s' }}>
+                        <input type="checkbox" checked={seleccionados.includes(d.id)} onChange={() => toggleSeleccion(d.id)}
                           style={{ width:'16px', height:'16px', accentColor:'#003366', cursor:'pointer', flexShrink:0 }} />
                         <div style={{ flex:1 }}>
-                          <div style={{ fontSize:'13px', fontWeight:'600', color:'#003366' }}>{h.descripcion}</div>
+                          <div style={{ fontSize:'13px', fontWeight:'600', color:'#003366' }}>{d.descripcion}</div>
                           <div style={{ fontSize:'11px', color:'#6c757d', marginTop:'2px' }}>
-                            {fmt(h.monto)} ·
-                            <a href={h.link_factura!} target="_blank" rel="noreferrer"
+                            {fmt(d.monto)} ·
+                            <a href={d.link} target="_blank" rel="noreferrer"
                               style={{ color:'#003366', textDecoration:'none', marginLeft:'4px' }}>
                               📎 Ver link
                             </a>
                           </div>
-                          {h.factura_notificada_at && (
+                          {d.notificado_at && (
                             <div style={{ fontSize:'10px', color:'#198754', marginTop:'3px', fontWeight:'600' }}>
-                              ✅ Notificada el {new Date(h.factura_notificada_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                              ✅ Notificado el {new Date(d.notificado_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}
                             </div>
                           )}
                         </div>
-                        <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'8px', background:'#d1e7dd', color:'#0a3622', fontWeight:'600', flexShrink:0 }}>
-                          {h.estado_factura}
+                        <span style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'8px', background: d.notificado_at ? '#d1e7dd' : '#fff3cd', color: d.notificado_at ? '#0a3622' : '#856404', fontWeight:'600', flexShrink:0 }}>
+                          {fmt(d.monto)}
                         </span>
                       </label>
                     ))}
@@ -168,9 +192,7 @@ export default function ModalEnviarFacturas({ proyecto, hitos: hitosProp, usuari
                   {seleccionados.length > 0 && (
                     <div style={{ background:'#e3f2fd', borderRadius:'8px', padding:'10px 14px', marginBottom:'16px', display:'flex', justifyContent:'space-between', fontSize:'13px' }}>
                       <span style={{ color:'#0d47a1' }}><strong>{seleccionados.length}</strong> documento{seleccionados.length !== 1 ? 's' : ''} seleccionado{seleccionados.length !== 1 ? 's' : ''}</span>
-                      <span style={{ fontWeight:'700', color:'#003366' }}>
-                        {fmt(hitosDisponibles.filter(h => seleccionados.includes(h.id)).reduce((a, h) => a + h.monto, 0))}
-                      </span>
+                      <span style={{ fontWeight:'700', color:'#003366' }}>{fmt(totalSeleccionado)}</span>
                     </div>
                   )}
 
