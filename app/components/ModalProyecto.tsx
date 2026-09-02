@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx'
 import { confirmar } from './Dialog'
 import ModalEnviarFacturas from './ModalEnviarFacturas'
 
+type DocumentoHito = { id: string; monto: number; link: string; notificado_at?: string | null }
+
 type Hito = {
   id: string
   descripcion: string
@@ -15,6 +17,7 @@ type Hito = {
   fecha_pago: string | null
   link_factura: string | null
   abonos?: { id: string; monto: number; fecha: string }[]
+  documentos?: DocumentoHito[]
 }
 
 type Costo = {
@@ -49,6 +52,7 @@ const fmt = (n: number, m = 'CLP') =>
 const bfMap: any = {
   'Pendiente':              { bg:'#fff3cd', c:'#856404' },
   'En Proceso Facturación': { bg:'#cff4fc', c:'#055160' },
+  'Facturado Parcial':      { bg:'#ffe5d0', c:'#a04e00' },
   'Facturado':              { bg:'#d1e7dd', c:'#0a3622' },
   'Anulado':                { bg:'#f8d7da', c:'#58151c' },
   'Abonado':                { bg:'#cff4fc', c:'#055160' },
@@ -339,6 +343,63 @@ function FormNuevoCosto({ proyectoId, onSave }: { proyectoId:string, onSave:()=>
   )
 }
 
+// ── Nuevo: form para agregar un documento de facturación (link + monto) a un hito ──
+function FormNuevoDocumento({ hitoId, moneda, restante, onSave }:
+  { hitoId:string, moneda:string, restante:number, onSave:()=>void }) {
+  const [monto, setMonto] = useState(restante > 0 ? String(restante) : '')
+  const [link, setLink] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const [abierto, setAbierto] = useState(false)
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault()
+    const n = parseFloat(monto)
+    if (!n || n <= 0) { setErr('Ingresa un monto válido.'); return }
+    if (!link.trim()) { setErr('Pega el link del documento.'); return }
+    setLoading(true)
+    const { error } = await supabase.from('documentos_hito').insert({
+      hito_id: hitoId, monto: n, link: link.trim(),
+    })
+    if (error) { setErr(error.message); setLoading(false); return }
+    setMonto(''); setLink(''); setErr(''); setAbierto(false); setLoading(false)
+    onSave()
+  }
+
+  if (!abierto) return (
+    <button onClick={()=>setAbierto(true)}
+      style={{ fontSize:'11px', padding:'4px 10px', borderRadius:'6px', border:'1px dashed #0d47a1', background:'white', color:'#0d47a1', cursor:'pointer', fontWeight:'600' }}>
+      + Agregar documento
+    </button>
+  )
+
+  return (
+    <div style={{ background:'#f0f7ff', borderRadius:'8px', padding:'10px', marginTop:'6px', border:'1px solid #cfe2ff' }}>
+      {err && <div style={{ fontSize:'11px', color:'#842029', background:'#fdecea', padding:'5px 9px', borderRadius:'6px', marginBottom:'6px' }}>⚠ {err}</div>}
+      <form onSubmit={guardar} style={{ display:'flex', gap:'6px', flexWrap:'wrap' as const, alignItems:'flex-end' }}>
+        <div style={{ width:'110px' }}>
+          <label style={{ fontSize:'10px', fontWeight:'600', color:'#374151', display:'block', marginBottom:'2px' }}>Monto</label>
+          <input type="number" value={monto} onChange={e=>setMonto(e.target.value)} placeholder="0"
+            style={{ width:'100%', padding:'6px 8px', fontSize:'12px', border:'1px solid #d1d5db', borderRadius:'6px', outline:'none', boxSizing:'border-box' as const }} />
+        </div>
+        <div style={{ flex:1, minWidth:'160px' }}>
+          <label style={{ fontSize:'10px', fontWeight:'600', color:'#374151', display:'block', marginBottom:'2px' }}>Link del documento</label>
+          <input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://..."
+            style={{ width:'100%', padding:'6px 8px', fontSize:'12px', border:'1px solid #d1d5db', borderRadius:'6px', outline:'none', boxSizing:'border-box' as const }} />
+        </div>
+        <button type="submit" disabled={loading}
+          style={{ padding:'6px 12px', borderRadius:'6px', border:'none', background:'#0d47a1', color:'white', cursor:'pointer', fontSize:'12px', fontWeight:'600' }}>
+          {loading ? '...' : 'Guardar'}
+        </button>
+        <button type="button" onClick={()=>setAbierto(false)}
+          style={{ padding:'6px 10px', borderRadius:'6px', border:'1px solid #d1d5db', background:'white', cursor:'pointer', fontSize:'12px' }}>
+          Cancelar
+        </button>
+      </form>
+    </div>
+  )
+}
+
 const ADMINS = ['fvaldebenito@aacadvisory.cl', 'vjimenez@aacadvisory.cl']
 
 function ModalComision({ presupuesto, moneda, colaboradores, onClose, onConfirm }:
@@ -446,11 +507,11 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
   async function cargar() {
     setLoading(true)
     const [{ data: h }, { data: c }, { data: p }] = await Promise.all([
-      supabase.from('hitos').select('*, abonos(*)').eq('proyecto_id', proyecto.id).order('created_at', { ascending:true }),
+      supabase.from('hitos').select('*, abonos(*), documentos_hito(*)').eq('proyecto_id', proyecto.id).order('created_at', { ascending:true }),
       supabase.from('costos').select('*, abonos(*)').eq('proyecto_id', proyecto.id).order('created_at', { ascending:true }),
       supabase.from('proyectos').select('*').eq('id', proyecto.id).single(),
     ])
-    if (h) setHitos(h)
+    if (h) setHitos(h.map((x: any) => ({ ...x, documentos: x.documentos_hito || [] })))
     if (c) setCostos(c)
     if (p) setProyectoLocal(p)
     setLoading(false)
@@ -460,6 +521,37 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
     await supabase.rpc('actualizar_estado_proyecto', { p_proyecto_id: proyecto.id })
     await cargar()
     onUpdate()
+  }
+
+  // ── Documentos de facturación (múltiples por hito) ──
+  async function recalcularEstadoFactura(hitoId: string) {
+    const { data: docs } = await supabase.from('documentos_hito').select('monto').eq('hito_id', hitoId)
+    const { data: hitoRow } = await supabase.from('hitos').select('monto, estado_factura').eq('id', hitoId).single()
+    if (!hitoRow) return
+    const totalDocs = (docs || []).reduce((a, d: any) => a + d.monto, 0)
+    let nuevoEstado = hitoRow.estado_factura
+    if (totalDocs <= 0) {
+      // Si no queda ningún documento, vuelve a Pendiente (salvo que esté Anulado manualmente)
+      if (hitoRow.estado_factura !== 'Anulado') nuevoEstado = 'Pendiente'
+    } else if (totalDocs >= hitoRow.monto - 0.01) {
+      nuevoEstado = 'Facturado'
+    } else {
+      nuevoEstado = 'Facturado Parcial'
+    }
+    await supabase.from('hitos').update({ estado_factura: nuevoEstado }).eq('id', hitoId)
+  }
+
+  async function agregarDocumentoGuardado(hitoId: string) {
+    await recalcularEstadoFactura(hitoId)
+    await cargar()
+  }
+
+  async function eliminarDocumento(docId: string, hitoId: string) {
+    const ok = await confirmar({ titulo: 'Eliminar documento', mensaje: '¿Eliminar este documento de facturación?', labelConfirmar: '✕ Eliminar' })
+    if (!ok) return
+    await supabase.from('documentos_hito').delete().eq('id', docId)
+    await recalcularEstadoFactura(hitoId)
+    await cargar()
   }
 
   async function eliminarHito(id:string) {
@@ -493,10 +585,6 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
 
   async function actualizarEstadoFactura(hitoId:string, valor:string) {
     await supabase.from('hitos').update({ estado_factura: valor }).eq('id', hitoId); cargar()
-  }
-
-  async function actualizarLink(hitoId:string, link:string) {
-    await supabase.from('hitos').update({ link_factura: link||null }).eq('id', hitoId); cargar()
   }
 
   const presupuesto   = (proyectoLocal.monto_base||0) + (proyectoLocal.monto_extra||0)
@@ -680,16 +768,6 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                 <div style={{ color:'rgba(255,255,255,0.65)', fontSize:'13px' }}>
                   👤 {proyectoLocal.cliente}{proyectoLocal.rut?` · ${proyectoLocal.rut}`:''}{proyectoLocal.email?` · ${proyectoLocal.email}`:''}
                 </div>
-                <div style={{ display:'flex', gap:'14px', marginTop:'4px' }}>
-                  <span style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px' }}>
-                    📅 Creado: {new Date(proyectoLocal.created_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })}
-                  </span>
-                  {proyectoLocal.updated_at && proyectoLocal.updated_at !== proyectoLocal.created_at && (
-                    <span style={{ color:'rgba(255,255,255,0.5)', fontSize:'11px' }}>
-                      ✏ Modificado: {new Date(proyectoLocal.updated_at).toLocaleDateString('es-CL', { day:'2-digit', month:'short', year:'numeric' })}
-                    </span>
-                  )}
-                </div>
               </div>
               <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
                 <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 10px', borderRadius:'10px', background:'rgba(255,255,255,0.2)', color:'white', textTransform:'uppercase' as const }}>{proyectoLocal.estado}</span>
@@ -795,6 +873,9 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                     {hitos.map(h => {
                       const ab = (h.abonos||[]).reduce((a,b)=>a+b.monto,0)
                       const pg = h.monto>0?Math.min((ab/h.monto)*100,100):0
+                      const docs = h.documentos || []
+                      const totalDocumentado = docs.reduce((a, d) => a + d.monto, 0)
+                      const restanteDocumentar = Math.max(h.monto - totalDocumentado, 0)
                       return (
                         <div key={h.id} style={{ border:'1px solid #e9ecef', borderRadius:'10px', overflow:'hidden' }}>
                           <div style={{ padding:'10px 14px', background:'#fafafa' }}>
@@ -803,7 +884,6 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                                 <div style={{ fontSize:'13px', fontWeight:'600', color:'#003366', marginBottom:'4px' }}>{h.descripcion}</div>
                                 <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' as const }}>
                                   <Badge text={h.estado_factura} /><Badge text={h.estado_pago} />
-                                  {h.link_factura && <a href={h.link_factura} target="_blank" rel="noopener noreferrer" style={{ fontSize:'11px', padding:'2px 7px', borderRadius:'8px', background:'#e3f2fd', color:'#0d47a1', textDecoration:'none', fontWeight:'600' }}>📎 Factura</a>}
                                 </div>
                               </div>
                               <div style={{ textAlign:'right' as const, flexShrink:0 }}>
@@ -817,14 +897,49 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
                             <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' as const, alignItems:'center' }}>
                               {h.estado_pago!=='Pagado' && <button onClick={()=>setAbonoItem({tipo:'hito',item:h})} style={{ fontSize:'11px', padding:'3px 9px', borderRadius:'6px', border:'1px solid #198754', background:'white', color:'#198754', cursor:'pointer', fontWeight:'600' }}>+ Abonar</button>}
                               <select value={h.estado_factura} onChange={e=>actualizarEstadoFactura(h.id,e.target.value)} style={{ fontSize:'11px', padding:'3px 6px', borderRadius:'6px', border:'1px solid #d1d5db', background:'white', cursor:'pointer' }}>
-                                <option>Pendiente</option><option>En Proceso Facturación</option><option>Facturado</option><option>Anulado</option>
+                                <option>Pendiente</option><option>En Proceso Facturación</option><option>Facturado Parcial</option><option>Facturado</option><option>Anulado</option>
                               </select>
-                              <input defaultValue={h.link_factura||''} onBlur={e=>actualizarLink(h.id,e.target.value)} placeholder="Link factura..." style={{ fontSize:'11px', padding:'3px 8px', borderRadius:'6px', border:'1px solid #d1d5db', outline:'none', flex:1, minWidth:'130px' }} />
                               <button onClick={()=>eliminarHito(h.id)} style={{ fontSize:'11px', padding:'4px 10px', borderRadius:'6px', border:'none', background:'#dc3545', color:'white', cursor:'pointer', marginLeft:'auto', fontWeight:'600', display:'flex', alignItems:'center', gap:'4px' }}>✕ Eliminar hito</button>
                             </div>
                           </div>
+
+                          {/* Documentos de facturación (múltiples por hito) */}
+                          <div style={{ padding:'10px 14px', background:'white', borderTop:'1px solid #f0f0f0' }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
+                              <div style={{ fontSize:'11px', fontWeight:'700', color:'#0d47a1', textTransform:'uppercase' as const, letterSpacing:'0.5px' }}>
+                                📎 Documentos de facturación
+                              </div>
+                              <div style={{ fontSize:'11px', color:'#6c757d' }}>
+                                Facturado: <strong style={{ color: totalDocumentado>=h.monto-0.01?'#198754':'#a04e00' }}>{fmt(totalDocumentado,proyectoLocal.moneda)}</strong> / {fmt(h.monto,proyectoLocal.moneda)}
+                              </div>
+                            </div>
+                            {docs.length > 0 && (
+                              <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const, marginBottom:'8px' }}>
+                                <tbody>
+                                  {docs.map(d => (
+                                    <tr key={d.id} style={{ borderBottom:'1px solid #f0f0f0' }}>
+                                      <td style={{ padding:'4px 6px' }}>
+                                        <a href={d.link} target="_blank" rel="noreferrer" style={{ color:'#003366', textDecoration:'none' }}>📎 Ver documento</a>
+                                      </td>
+                                      <td style={{ padding:'4px 6px', textAlign:'right' as const, fontWeight:'600', color:'#0d47a1' }}>{fmt(d.monto,proyectoLocal.moneda)}</td>
+                                      <td style={{ padding:'4px 6px', textAlign:'center' as const }}>
+                                        {d.notificado_at
+                                          ? <span style={{ fontSize:'10px', color:'#198754', fontWeight:'600' }}>✅ Enviado</span>
+                                          : <span style={{ fontSize:'10px', color:'#aaa' }}>Sin enviar</span>}
+                                      </td>
+                                      <td style={{ padding:'4px 6px', textAlign:'center' as const }}>
+                                        <button onClick={()=>eliminarDocumento(d.id, h.id)} style={{ fontSize:'11px', padding:'2px 8px', borderRadius:'5px', border:'none', background:'#dc3545', color:'white', cursor:'pointer', fontWeight:'600' }}>✕</button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                            <FormNuevoDocumento hitoId={h.id} moneda={proyectoLocal.moneda} restante={restanteDocumentar} onSave={()=>agregarDocumentoGuardado(h.id)} />
+                          </div>
+
                           {(h.abonos||[]).length>0 && (
-                            <div style={{ padding:'6px 14px 10px', background:'white' }}>
+                            <div style={{ padding:'6px 14px 10px', background:'white', borderTop:'1px solid #f0f0f0' }}>
                               <div style={{ fontSize:'11px', fontWeight:'700', color:'#6c757d', textTransform:'uppercase' as const, letterSpacing:'0.5px', marginBottom:'5px' }}>Abonos</div>
                               <table style={{ width:'100%', fontSize:'12px', borderCollapse:'collapse' as const }}>
                                 <tbody>
@@ -924,7 +1039,7 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
         </div>
       </div>
 
-   {showComision && proyectoLocal && (
+      {showComision && proyectoLocal && (
         <ModalComision
           presupuesto={(proyectoLocal.monto_base||0)+(proyectoLocal.monto_extra||0)}
           moneda={proyectoLocal.moneda}
@@ -939,7 +1054,6 @@ export default function ModalProyecto({ proyecto, onClose, onUpdate, usuarioEmai
       {showEnviarFacturas && proyectoLocal && (
         <ModalEnviarFacturas
           proyecto={{ id: proyectoLocal.id, nombre: proyectoLocal.nombre, cliente: proyectoLocal.cliente, email: proyectoLocal.email || '', moneda: proyectoLocal.moneda }}
-          hitos={hitos}
           usuarioEmail={usuarioEmail}
           onClose={() => setShowEnviarFacturas(false)}
         />
