@@ -538,7 +538,6 @@ export default function Dashboard() {
       {proyectoEnviarFacturas && (
         <ModalEnviarFacturas
           proyecto={{ id: proyectoEnviarFacturas.id, nombre: proyectoEnviarFacturas.nombre, cliente: proyectoEnviarFacturas.cliente, email: proyectoEnviarFacturas.email || '', moneda: proyectoEnviarFacturas.moneda }}
-          hitos={[]}
           usuarioEmail={user?.email || ''}
           onClose={() => setProyectoEnviarFacturas(null)}
         />
